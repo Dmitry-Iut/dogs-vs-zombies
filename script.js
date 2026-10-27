@@ -74,6 +74,12 @@ const THEMES = {
   boss:     {g1:'#7DB555',g2:'#6EA748',street:'#5E4E58',deck:'#A07048',tint:'rgba(85,0,40,.46)',stars:true}
 };
 const TRACKS = {
+  menu: {bpm:104, lead:'triangle', lv:.13, kick:8, snare:true,
+    mel:[72,0,76,79,84,0,79,76, 81,0,79,76,72,0,74,76, 77,0,81,0,79,77,76,74, 74,0,79,0,0,0,71,74,
+         76,0,79,84,0,83,81,79, 81,0,76,0,72,74,76,0, 77,76,74,72,74,0,71,0, 72,0,0,0,67,0,72,0],
+    bass:[48,0,55,0,48,0,55,52, 45,0,52,0,45,0,52,48, 41,0,48,0,41,0,48,45, 43,0,50,0,43,0,47,50,
+          48,0,55,0,48,0,55,52, 45,0,52,0,45,0,52,48, 41,0,48,0,43,0,50,0, 48,0,55,0,48,0,0,0],
+    chords:[[60,64,67],[57,60,64],[53,57,60],[55,59,62],[60,64,67],[57,60,64],[53,57,60],[55,60,64]]},
   day:  {bpm:116, lead:'triangle', lv:.15, mel:[72,0,76,79,76,0,72,74,76,0,74,72,69,0,0,0,72,0,76,79,81,0,79,76,74,0,76,74,72,0,0,0], bass:[48,0,55,0,48,0,55,0,45,0,52,0,45,0,52,0,41,0,48,0,43,0,50,0,43,0,50,0,48,0,55,0]},
   night:{bpm:98,  lead:'sine',     lv:.16, mel:[69,0,72,0,76,0,74,72,71,0,0,0,67,0,71,0,69,0,72,0,77,0,76,74,72,0,71,0,69,0,0,0], bass:[45,0,52,0,45,0,52,0,43,0,50,0,43,0,50,0,41,0,48,0,41,0,48,0,40,0,47,0,45,0,52,0]},
   boss: {bpm:140, lead:'square',   lv:.06, mel:[69,0,72,69,76,0,75,0,74,0,72,71,69,0,0,0,69,0,72,69,77,0,76,0,74,0,72,0,71,0,68,0], bass:[33,33,0,33,40,0,33,0,31,31,0,31,38,0,31,0,29,29,0,29,36,0,29,0,28,28,0,28,35,0,32,0], kick:true}
@@ -97,6 +103,7 @@ const S = {
   init(){
     if(this.ctx){ if(this.ctx.state==='suspended') this.ctx.resume(); return; }
     const AC = window.AudioContext||window.webkitAudioContext; if(!AC) return;
+    try{ if(navigator.audioSession) navigator.audioSession.type='ambient'; }catch(e){}
     try{ this.ctx = new AC(); }catch(e){ return; }
     const c=this.ctx;
     this.master=c.createGain(); this.master.gain.value=this.on?1:0; this.master.connect(c.destination);
@@ -130,12 +137,12 @@ const S = {
   horn(){ this.tone(196,.5,'sawtooth',.08,180); this.tone(147,.6,'sawtooth',.07,140,this.ctx?this.ctx.currentTime+.45:0); },
   roar(){ this.noise(1,.35,400); this.tone(80,1,'sawtooth',.18,45); },
   jingle(win){ const c=this.ctx; if(!c) return; const n=c.currentTime; const seq=win?[72,76,79,84,79,84]:[67,63,60,55]; seq.forEach((m,i)=>this.tone(440*Math.pow(2,(m-69)/12),.28,'triangle',.22,null,n+i*.14)); },
-  /* Музыка из файлов music/1.mp3, 2.mp3, 3.mp3… (номера подряд). На каждую игру — случайный трек,
+  /* Музыка из файлов music/1.mp3, 2.mp3, 3.mp3… (номера подряд). Меню — своя синтезаторная мелодия. На каждую игру — случайный трек,
      в бесконечном режиме трек меняется каждую минуту. Нет файлов — играет синтезатор */
   list:null,listCbs:null,audio:null,elapsed:0,lastT:0,gen:0,
   startMusic(track,fresh){ this.track=track; this.wantMusic=true; if(!this.ctx) return; this.stopMusic(true); const g=this.gen;
     this.loadList(l=>{ if(g!==this.gen) return;
-      if(l.length){ if(fresh||!this.audio) this.pickTrack(); else { this.applyMusicVol(); this.audio.play().catch(()=>{}); } }
+      if(l.length&&track!=='menu'){ if(fresh||!this.audio) this.pickTrack(); else { this.applyMusicVol(); this.audio.play().catch(()=>{}); } }
       else { this.step=0; this.next=this.ctx.currentTime+.1; this.timer=setInterval(()=>this.sched(),40); } }); },
   stopMusic(keep){ this.gen++; clearInterval(this.timer); this.timer=null; if(this.audio) this.audio.pause(); if(!keep) this.wantMusic=false; },
   pickTrack(){ const l=this.list; let a; do a=l[Math.floor(Math.random()*l.length)]; while(l.length>1&&a===this.audio);
@@ -155,7 +162,9 @@ const S = {
       if(m) this.tone(mf(m),spb*1.7,Tk.lead,Tk.lv,null,this.next,this.mg);
       if(b) this.tone(mf(b),spb*1.9,'triangle',.2,null,this.next,this.mg);
       if(i%2===1) this.noise(.03,.035,7000,'highpass',this.next,this.mg);
-      if(Tk.kick && i%4===0) this.tone(130,.14,'sine',.3,45,this.next,this.mg);
+      if(Tk.kick && i%(Tk.kick===true?4:Tk.kick)===0) this.tone(130,.14,'sine',.3,45,this.next,this.mg);
+      if(Tk.snare && i%8===4) this.noise(.12,.1,2000,'bandpass',this.next,this.mg,.8);
+      if(Tk.chords && i%8===0) Tk.chords[(i/8)%Tk.chords.length].forEach(n=>this.tone(mf(n),spb*7.5,'sine',.04,null,this.next,this.mg));
       this.next+=spb; this.step++; } }
 };
 
@@ -716,8 +725,8 @@ function syncMusicVol(){ const p=Math.round(S.mvol*100); document.querySelectorA
 document.querySelectorAll('.musicVol').forEach(el=>el.addEventListener('input',()=>{ S.setMusicVol(el.value/100); try{ localStorage.setItem('dvz-music',String(S.mvol)); }catch(e){} syncMusicVol(); }));
 syncMusicVol();
 $('bSound').addEventListener('click',toggleSound); $('bPauseSound').addEventListener('click',toggleSound);
-$('bPlay').addEventListener('click',()=>{ S.init(); S.startMusic('day'); if(PROG.unlocked>1) openLevels(); else openIntro(0); });
-$('bLevels').addEventListener('click',()=>{ S.init(); S.startMusic('day'); openLevels(); });
+$('bPlay').addEventListener('click',()=>{ S.init(); S.startMusic('menu'); if(PROG.unlocked>1) openLevels(); else openIntro(0); });
+$('bLevels').addEventListener('click',()=>{ S.init(); S.startMusic('menu'); openLevels(); });
 $('bHelp').addEventListener('click',()=>show('sHelp'));
 $('bHelpBack').addEventListener('click',()=>show('sTitle'));
 $('bLvBack').addEventListener('click',()=>show('sTitle'));
@@ -725,15 +734,15 @@ $('bGo').addEventListener('click',()=>{ const need=Math.min(SLOTS,availFor(intro
   if(pickSel.length<need){ S.init(); S.err(); nope('pickCount'); $('pickInfo').textContent='Выбери ещё '+(need-pickSel.length)+' — в команде должно быть '+need+' собак.'; return; }
   curLoadout=pickSel.slice(); try{ localStorage.setItem('dvz-loadout',JSON.stringify(curLoadout)); }catch(e){}
   startLevel(introLevel); });
-$('bEndless').addEventListener('click',()=>{ S.init(); S.startMusic('day'); openIntro('endless'); });
+$('bEndless').addEventListener('click',()=>{ S.init(); S.startMusic('menu'); openIntro('endless'); });
 $('bIntroBack').addEventListener('click',openLevels);
 $('bResume').addEventListener('click',()=>{ paused=false; hideAll(); S.startMusic(S.track); });
 $('bRestart').addEventListener('click',()=>startLevel(G.li));
-$('bQuit').addEventListener('click',()=>{ if(G&&G.endless&&state==='play') saveBest(); state='menu'; paused=false; S.startMusic('day'); openLevels(); });
+$('bQuit').addEventListener('click',()=>{ if(G&&G.endless&&state==='play') saveBest(); state='menu'; paused=false; S.startMusic('menu'); openLevels(); });
 $('bNext').addEventListener('click',()=>openIntro(Math.min(LEVELS.length-1,G.li+1)));
-$('bWinLv').addEventListener('click',()=>{ S.startMusic('day'); openLevels(); });
+$('bWinLv').addEventListener('click',()=>{ S.startMusic('menu'); openLevels(); });
 $('bRetry').addEventListener('click',()=>startLevel(G.li));
-$('bLoseLv').addEventListener('click',()=>{ S.startMusic('day'); openLevels(); });
+$('bLoseLv').addEventListener('click',()=>{ S.startMusic('menu'); openLevels(); });
 $('bFinalLv').addEventListener('click',openLevels);
 
 function openLevels(){
@@ -787,7 +796,7 @@ function win(){
   S.stopMusic(true); S.jingle(true);
   for(let i=0;i<30;i++) G.parts.push({x:rand(0,W),y:rand(H*.3,H*.9),vx:rand(-40,40),vy:rand(-260,-100),life:rand(1.2,2.2),max:2.2,color:['#FF6B8B','#F0B945','#fff'][i%3],size:rand(5,9),heart:true,g:120});
   setTimeout(()=>{
-    if(last){ $('finalMsg').textContent=FINAL_TEXT; $('finalSig').textContent=SIGNATURE+' ❤'; show('sFinal'); S.startMusic('day'); }
+    if(last){ $('finalMsg').textContent=FINAL_TEXT; $('finalSig').textContent=SIGNATURE+' ❤'; show('sFinal'); S.startMusic('menu'); }
     else { $('winEyebrow').textContent='Уровень '+(G.li+1)+' пройден'; $('winMsg').textContent=WIN_TEXT[G.li]||''; show('sWin'); }
   },1400);
 }
