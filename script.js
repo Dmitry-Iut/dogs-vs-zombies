@@ -91,8 +91,9 @@ function rr(c,x,y,w,h,r,fill,lw){r=Math.max(0,Math.min(r,w/2,h/2));c.beginPath()
 function heart(c,x,y,s,fill){c.beginPath();c.moveTo(x,y+s*.35);c.bezierCurveTo(x-s*.9,y-s*.25,x-s*.35,y-s*.85,x,y-s*.35);c.bezierCurveTo(x+s*.35,y-s*.85,x+s*.9,y-s*.25,x,y+s*.35);c.closePath();c.fillStyle=fill;c.fill()}
 
 /* ================== Звук ================== */
+const MUSIC_VOL=.6, MUSIC_EXT=['mp3','ogg','m4a','wav'], ENDLESS_TRACK_SEC=60;
 const S = {
-  ctx:null,on:true,timer:null,track:'day',step:0,next:0,last:{},
+  ctx:null,on:true,mvol:1,timer:null,track:'day',step:0,next:0,last:{},
   init(){
     if(this.ctx){ if(this.ctx.state==='suspended') this.ctx.resume(); return; }
     const AC = window.AudioContext||window.webkitAudioContext; if(!AC) return;
@@ -100,11 +101,13 @@ const S = {
     const c=this.ctx;
     this.master=c.createGain(); this.master.gain.value=this.on?1:0; this.master.connect(c.destination);
     this.sfx=c.createGain(); this.sfx.gain.value=.6; this.sfx.connect(this.master);
-    this.mg=c.createGain(); this.mg.gain.value=.5; this.mg.connect(this.master);
+    this.mg=c.createGain(); this.mg.gain.value=.5*this.mvol; this.mg.connect(this.master);
     const len=c.sampleRate; this.nb=c.createBuffer(1,len,c.sampleRate); const d=this.nb.getChannelData(0); for(let i=0;i<len;i++) d[i]=Math.random()*2-1;
     if(this.wantMusic) this.startMusic(this.track);
   },
-  setOn(v){ this.on=v; if(this.master) this.master.gain.setTargetAtTime(v?1:0,this.ctx.currentTime,.03); },
+  setOn(v){ this.on=v; if(this.master) this.master.gain.setTargetAtTime(v?1:0,this.ctx.currentTime,.03); this.applyMusicVol(); },
+  setMusicVol(v){ this.mvol=v; if(this.mg) this.mg.gain.setTargetAtTime(.5*v,this.ctx.currentTime,.03); this.applyMusicVol(); },
+  applyMusicVol(){ const a=this.audio; if(!a) return; const v=this.on?MUSIC_VOL*this.mvol:0; a.volume=v; a.muted=v===0; },
   thr(name,gap){ const n=performance.now(); if(this.last[name] && n-this.last[name]<gap) return false; this.last[name]=n; return true; },
   tone(f,dur,type,vol,f2,when,dest){ const c=this.ctx; if(!c) return; const t=when||c.currentTime; const o=c.createOscillator(),g=c.createGain(); o.type=type||'sine'; o.frequency.setValueAtTime(f,t); if(f2) o.frequency.exponentialRampToValueAtTime(f2,t+dur); g.gain.setValueAtTime(.0001,t); g.gain.exponentialRampToValueAtTime(vol||.2,t+.01); g.gain.exponentialRampToValueAtTime(.0001,t+dur); o.connect(g); g.connect(dest||this.sfx); o.start(t); o.stop(t+dur+.03); },
   noise(dur,vol,freq,ft,when,dest,q){ const c=this.ctx; if(!c) return; const t=when||c.currentTime; const s=c.createBufferSource(); s.buffer=this.nb; const f=c.createBiquadFilter(); f.type=ft||'lowpass'; f.frequency.value=freq||1000; if(q) f.Q.value=q; const g=c.createGain(); g.gain.setValueAtTime(vol,t); g.gain.exponentialRampToValueAtTime(.0001,t+dur); s.connect(f); f.connect(g); g.connect(dest||this.sfx); s.start(t,Math.random()*.5); s.stop(t+dur+.03); },
@@ -127,8 +130,26 @@ const S = {
   horn(){ this.tone(196,.5,'sawtooth',.08,180); this.tone(147,.6,'sawtooth',.07,140,this.ctx?this.ctx.currentTime+.45:0); },
   roar(){ this.noise(1,.35,400); this.tone(80,1,'sawtooth',.18,45); },
   jingle(win){ const c=this.ctx; if(!c) return; const n=c.currentTime; const seq=win?[72,76,79,84,79,84]:[67,63,60,55]; seq.forEach((m,i)=>this.tone(440*Math.pow(2,(m-69)/12),.28,'triangle',.22,null,n+i*.14)); },
-  startMusic(track){ this.track=track; this.wantMusic=true; if(!this.ctx) return; this.stopMusic(true); this.step=0; this.next=this.ctx.currentTime+.1; this.timer=setInterval(()=>this.sched(),40); },
-  stopMusic(keep){ clearInterval(this.timer); this.timer=null; if(!keep) this.wantMusic=false; },
+  /* Музыка из файлов music/1.mp3, 2.mp3, 3.mp3… (номера подряд). На каждую игру — случайный трек,
+     в бесконечном режиме трек меняется каждую минуту. Нет файлов — играет синтезатор */
+  list:null,listCbs:null,audio:null,elapsed:0,lastT:0,gen:0,
+  startMusic(track,fresh){ this.track=track; this.wantMusic=true; if(!this.ctx) return; this.stopMusic(true); const g=this.gen;
+    this.loadList(l=>{ if(g!==this.gen) return;
+      if(l.length){ if(fresh||!this.audio) this.pickTrack(); else { this.applyMusicVol(); this.audio.play().catch(()=>{}); } }
+      else { this.step=0; this.next=this.ctx.currentTime+.1; this.timer=setInterval(()=>this.sched(),40); } }); },
+  stopMusic(keep){ this.gen++; clearInterval(this.timer); this.timer=null; if(this.audio) this.audio.pause(); if(!keep) this.wantMusic=false; },
+  pickTrack(){ const l=this.list; let a; do a=l[Math.floor(Math.random()*l.length)]; while(l.length>1&&a===this.audio);
+    if(this.audio) this.audio.pause(); this.audio=a; a.currentTime=0; this.lastT=0; this.elapsed=0; this.applyMusicVol(); a.play().catch(()=>{}); },
+  loadList(cb){ if(this.list) return cb(this.list); if(this.listCbs) return this.listCbs.push(cb); this.listCbs=[cb]; const list=[];
+    const probe=(n,e)=>{ if(e>=MUSIC_EXT.length){ this.list=list; const cbs=this.listCbs; this.listCbs=null; cbs.forEach(f=>f(list)); return; }
+      const a=new Audio(); let done=false; a.preload='auto'; a.loop=true;
+      const ok=()=>{ if(done) return; done=true; a.addEventListener('timeupdate',()=>this.tick(a)); list.push(a); probe(n+1,0); },
+            bad=()=>{ if(done) return; done=true; probe(n,e+1); };
+      a.addEventListener('canplay',ok); a.addEventListener('loadeddata',ok); a.addEventListener('error',bad); a.src='music/'+n+'.'+MUSIC_EXT[e]; a.load(); };
+    probe(1,0); },
+  tick(a){ if(a!==this.audio) return; let d=a.currentTime-this.lastT; if(d<0) d+=a.duration||0; this.lastT=a.currentTime;
+    if(d>0&&d<2) this.elapsed+=d;
+    if(this.elapsed>=ENDLESS_TRACK_SEC && G&&G.endless&&state==='play'&&!paused) this.pickTrack(); },
   sched(){ const c=this.ctx, Tk=TRACKS[this.track]; const spb=60/Tk.bpm/2; const mf=m=>440*Math.pow(2,(m-69)/12);
     while(this.next<c.currentTime+.18){ const i=this.step%Tk.mel.length, m=Tk.mel[i], b=Tk.bass[i];
       if(m) this.tone(mf(m),spb*1.7,Tk.lead,Tk.lv,null,this.next,this.mg);
@@ -359,7 +380,7 @@ const cv=$('game'), ctx=cv.getContext('2d');
 let W=0,H=0,DPR=1,L={},bg=null,G=null,state='menu',paused=false,hover=null;
 let PROG={unlocked:1};
 try{ const sv=JSON.parse(localStorage.getItem('dvz-prog')||'null'); if(sv&&sv.unlocked) PROG=sv; }catch(e){}
-try{ if(localStorage.getItem('dvz-sound')==='off') S.on=false; }catch(e){}
+try{ if(localStorage.getItem('dvz-sound')==='off') S.on=false; const mv=localStorage.getItem('dvz-music'); if(mv!==null&&isFinite(+mv)) S.mvol=Math.max(0,Math.min(1,+mv)); }catch(e){}
 function saveProg(){ try{ localStorage.setItem('dvz-prog',JSON.stringify(PROG)); }catch(e){} }
 
 function resize(){
@@ -423,7 +444,7 @@ function startLevel(i){
   buildBg(); buildCards(); updShovel(); hud(true);
   hideAll(); state='play'; paused=false;
   G.lightT=rand(5,9); G.lightning=0;
-  S.startMusic(themeTrack(lv.theme));
+  S.startMusic(themeTrack(lv.theme),true);
 }
 function spawnZ(type,col,y){
   const D=ZOMB[type];
@@ -691,6 +712,9 @@ function show(id){ SCREENS.forEach(s=>$(s).hidden=s!==id); if(id==='sTitle') req
 function hideAll(){ SCREENS.forEach(s=>$(s).hidden=true); }
 function syncSoundLabels(){ const t='Звук: '+(S.on?'вкл':'выкл'); $('bSound').textContent=t; $('bPauseSound').textContent=t; }
 function toggleSound(){ S.init(); S.setOn(!S.on); try{ localStorage.setItem('dvz-sound',S.on?'on':'off'); }catch(e){} syncSoundLabels(); }
+function syncMusicVol(){ const p=Math.round(S.mvol*100); document.querySelectorAll('.musicVol').forEach(el=>el.value=p); document.querySelectorAll('.musicVolTxt').forEach(el=>el.textContent=p?p+'%':'выкл'); }
+document.querySelectorAll('.musicVol').forEach(el=>el.addEventListener('input',()=>{ S.setMusicVol(el.value/100); try{ localStorage.setItem('dvz-music',String(S.mvol)); }catch(e){} syncMusicVol(); }));
+syncMusicVol();
 $('bSound').addEventListener('click',toggleSound); $('bPauseSound').addEventListener('click',toggleSound);
 $('bPlay').addEventListener('click',()=>{ S.init(); S.startMusic('day'); if(PROG.unlocked>1) openLevels(); else openIntro(0); });
 $('bLevels').addEventListener('click',()=>{ S.init(); S.startMusic('day'); openLevels(); });
