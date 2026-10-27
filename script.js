@@ -97,13 +97,18 @@ function rr(c,x,y,w,h,r,fill,lw){r=Math.max(0,Math.min(r,w/2,h/2));c.beginPath()
 function heart(c,x,y,s,fill){c.beginPath();c.moveTo(x,y+s*.35);c.bezierCurveTo(x-s*.9,y-s*.25,x-s*.35,y-s*.85,x,y-s*.35);c.bezierCurveTo(x+s*.35,y-s*.85,x+s*.9,y-s*.25,x,y+s*.35);c.closePath();c.fillStyle=fill;c.fill()}
 
 /* ================== Звук ================== */
+function silentWav(){ const n=800, b=new Uint8Array(44+n), v=new DataView(b.buffer), str=(o,t)=>{ for(let i=0;i<t.length;i++) b[o+i]=t.charCodeAt(i); };
+  str(0,'RIFF'); v.setUint32(4,36+n,true); str(8,'WAVEfmt '); v.setUint32(16,16,true); v.setUint16(20,1,true); v.setUint16(22,1,true);
+  v.setUint32(24,8000,true); v.setUint32(28,8000,true); v.setUint16(32,1,true); v.setUint16(34,8,true); str(36,'data'); v.setUint32(40,n,true); b.fill(128,44);
+  let bin=''; b.forEach(x=>bin+=String.fromCharCode(x)); return 'data:audio/wav;base64,'+btoa(bin); }
 const MUSIC_VOL=.6, MUSIC_EXT=['mp3','ogg','m4a','wav'], ENDLESS_TRACK_SEC=60;
 const S = {
   ctx:null,on:true,mvol:1,timer:null,track:'day',step:0,next:0,last:{},
   init(){
     if(this.ctx){ if(this.ctx.state==='suspended') this.ctx.resume(); return; }
     const AC = window.AudioContext||window.webkitAudioContext; if(!AC) return;
-    try{ if(navigator.audioSession) navigator.audioSession.type='ambient'; }catch(e){}
+    // iPhone: играть и в беззвучном режиме (iOS 16.4+ — audioSession, старее — тихий <audio> переключает сессию)
+    try{ if(navigator.audioSession) navigator.audioSession.type='playback'; else { const a=new Audio(silentWav()); a.loop=true; a.setAttribute('playsinline',''); a.play().catch(()=>{}); this.unmute=a; } }catch(e){}
     try{ this.ctx = new AC(); }catch(e){ return; }
     const c=this.ctx;
     this.master=c.createGain(); this.master.gain.value=this.on?1:0; this.master.connect(c.destination);
@@ -696,7 +701,7 @@ function hints(){
 }
 
 /* ================== Управление ================== */
-function local(e){ const r=cv.getBoundingClientRect(); return {x:e.clientX-r.left,y:e.clientY-r.top}; }
+function local(e){ const r=cv.getBoundingClientRect(); return {x:(e.clientX-r.left)*W/(r.width||1),y:(e.clientY-r.top)*H/(r.height||1)}; }
 cv.addEventListener('pointerdown',e=>{ S.init(); if(state!=='play'||paused) return; const p=local(e); tap(p.x,p.y); });
 cv.addEventListener('pointermove',e=>{ if(!G) return; const p=local(e); hover={c:Math.floor(p.x/L.cw),r:Math.floor((p.y-L.top)/L.ch)}; });
 cv.addEventListener('pointerleave',()=>hover=null);
@@ -839,7 +844,9 @@ function loop(ts){
 }
 (function boneIcon(){ const c=$('boneIcon').getContext('2d'); drawBone(c,32,32,40,-.5,false); })();
 $('titleSub').textContent=HER+', двор в опасности!';
-window.addEventListener('resize',()=>{ resize(); if(G&&state==='play') for(const k in cardEls) paintIcon(cardEls[k].querySelector('canvas'),k); });
+function onResize(){ resize(); if(G&&state==='play') for(const k in cardEls) paintIcon(cardEls[k].querySelector('canvas'),k); }
+window.addEventListener('resize',onResize);
+if(window.ResizeObserver) new ResizeObserver(()=>{ const r=cv.parentElement.getBoundingClientRect(); if(Math.abs(r.width-W)>.5||Math.abs(r.height-H)>.5) onResize(); }).observe(cv.parentElement);
 syncSoundLabels();
 resize();
 show('sTitle');
