@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#1D3138">
+<title>Собаки против Зомби</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;800;900&family=Rubik+Wet+Paint&display=swap">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="app">
+  <div id="hud">
+    <div class="row">
+      <div id="bonesBox" aria-label="Косточки"><canvas id="boneIcon" width="64" height="64"></canvas><span id="boneCount">150</span></div>
+      <div id="lvl"><div id="lvlName">Уровень</div><div class="prog"><div id="progFill"></div></div></div>
+      <button class="ibtn" id="speedBtn" type="button" aria-label="Скорость">x1</button>
+      <button class="ibtn" id="shovelBtn" type="button" aria-label="Лопата: убрать собаку">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4l6 6"/><path d="M17 7l-7.5 7.5"/><path d="M9.5 11.5l3 3-3.2 3.2a3 3 0 01-4.2 0l-.8-.8a3 3 0 010-4.2z"/></svg>
+      </button>
+      <button class="ibtn" id="pauseBtn" type="button" aria-label="Пауза">
+        <svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1.5"/><rect x="14" y="5" width="4" height="14" rx="1.5"/></svg>
+      </button>
+    </div>
+    <div id="cards"></div>
+  </div>
+  <div id="fieldWrap">
+    <canvas id="game"></canvas>
+    <div id="banner"></div>
+    <div id="tip"></div>
+  </div>
+
+  <section class="screen solid" id="sTitle">
+    <canvas class="bgcv" id="titleCv"></canvas>
+    <div class="logo"><span class="a">СОБАКИ</span><span class="b">против</span><span class="c">Зомби</span></div>
+    <div class="sub" id="titleSub">Лена, двор в опасности!</div>
+    <div class="btns" style="margin-top:8px">
+      <button class="btn pri" id="bPlay" type="button">Играть</button>
+      <button class="btn" id="bLevels" type="button">Уровни</button>
+      <button class="btn" id="bEndless" type="button">Бесконечный режим</button>
+      <div class="btnrow"><button class="btn ghost" id="bHelp" type="button">Как играть</button><button class="btn ghost" id="bSound" type="button">Звук: вкл</button></div>
+    </div>
+  </section>
+
+  <section class="screen solid" id="sLevels" hidden>
+    <div class="eyebrow">Выбери двор</div>
+    <h2>Уровни</h2>
+    <div id="levelGrid"></div>
+    <div class="btns"><button class="btn ghost" id="bLvBack" type="button">Назад</button></div>
+  </section>
+
+  <section class="screen solid" id="sHelp" hidden>
+    <h2>Как играть</h2>
+    <div class="help">
+      <div><b>Косточки</b> — это валюта. Их приносят корги, а иногда они падают с неба. Нажимай на косточку, чтобы собрать.</div>
+      <div><b>Собаки.</b> Выбери собаку на панели сверху и нажми на клетку газона.</div>
+      <div><b>Зомби</b> идут сверху вниз по своим дорожкам. Собаки бросают мячики вверх по своей дорожке.</div>
+      <div><b>Робот-пылесос</b> внизу прогонит зомби, который дошёл до дома. Но только один раз на дорожку.</div>
+      <div><b>Лопата</b> убирает собаку с клетки, если нужно освободить место.</div>
+    </div>
+    <div class="btns"><button class="btn pri" id="bHelpBack" type="button">Понятно</button></div>
+  </section>
+
+  <section class="screen" id="sIntro" hidden>
+    <div class="eyebrow" id="introEyebrow">Уровень 1</div>
+    <h2 id="introTitle">Солнечный дворик</h2>
+    <div class="friends" id="introFriends"></div>
+    <div id="picker" hidden>
+      <div id="pickHead"><span>Выбери собак в команду</span><span id="pickCount">0/6</span></div>
+      <div id="pickGrid"></div>
+      <div id="pickInfo"></div>
+    </div>
+    <div class="btns"><button class="btn pri" id="bGo" type="button">В бой!</button><button class="btn ghost" id="bIntroBack" type="button">К уровням</button></div>
+  </section>
+
+  <section class="screen" id="sPause" hidden>
+    <h2>Пауза</h2>
+    <p>Собаки ждут и виляют хвостами.</p>
+    <div class="btns">
+      <button class="btn pri" id="bResume" type="button">Продолжить</button>
+      <button class="btn" id="bRestart" type="button">Начать уровень заново</button>
+      <button class="btn ghost" id="bPauseSound" type="button">Звук: вкл</button>
+      <button class="btn ghost" id="bQuit" type="button">К уровням</button>
+    </div>
+  </section>
+
+  <section class="screen" id="sWin" hidden>
+    <div class="eyebrow" id="winEyebrow">Уровень пройден</div>
+    <h2>Двор спасён!</h2>
+    <p id="winMsg"></p>
+    <div class="btns"><button class="btn pri" id="bNext" type="button">Дальше</button><button class="btn ghost" id="bWinLv" type="button">К уровням</button></div>
+  </section>
+
+  <section class="screen" id="sLose" hidden>
+    <div class="eyebrow" id="loseEyebrow">Ой-ой</div>
+    <h2 id="loseTitle">Зомби пробрались в дом</h2>
+    <p id="loseMsg">Собаки не обиделись и верят в тебя. Попробуй ещё раз: побольше корги в начале и бульдоги впереди.</p>
+    <div class="btns"><button class="btn pri" id="bRetry" type="button">Ещё раз</button><button class="btn ghost" id="bLoseLv" type="button">К уровням</button></div>
+  </section>
+
+  <section class="screen solid" id="sFinal" hidden>
+    <canvas class="bgcv" id="finalCv"></canvas>
+    <div class="msgbox">
+      <div class="eyebrow">Зомби-Король повержен</div>
+      <h2>Победа!</h2>
+      <p id="finalMsg"></p>
+      <div class="sig" id="finalSig"></div>
+      <div class="btns"><button class="btn pri" id="bFinalLv" type="button">К уровням</button></div>
+    </div>
+  </section>
+</div>
+<script src="script.js"></script>
+</body>
+</html>
