@@ -1,4 +1,3 @@
-/* ================== Рисование зомби ================== */
 const ZC = {
   basic: { shirt: "#7B5B3F", pants: "#45506B" },
   helmet: { shirt: "#E07A2E", pants: "#3F4A5E" },
@@ -17,7 +16,13 @@ function drawZombie(c, z, x, y, s, t) {
   const k = s * (boss ? 2.2 : giant ? 1.45 : fat ? 1.1 : 1);
   const C = ZC[z.type];
   const lw = Math.max(1, k * 0.03);
-  const sk = z.flash > 0 ? "#EAF7DA" : z.slowT > 0 ? "#A3CDE8" : "#9DBE70";
+  const sk = z.flash > 0
+    ? "#EAF7DA"
+    : z.hypno
+      ? "#C7A3E6"
+      : z.slowT > 0
+        ? "#A3CDE8"
+        : "#9DBE70";
   const ph = z.ph,
     walk = z.eating
       ? 0
@@ -180,7 +185,7 @@ function drawZombie(c, z, x, y, s, t) {
     c.lineTo(hx + k * 0.13 + i * k * 0.018, hy + k * 0.045 + i * k * 0.015);
   }
   c.stroke();
-  const eyeC = boss ? "#FF4A3A" : "#FFF8E0";
+  const eyeC = boss ? "#FF4A3A" : z.hypno ? "#F3E4FF" : "#FFF8E0";
   E(c, hx - k * 0.075, hy - k * 0.02, k * 0.06, k * 0.065, eyeC, lw * 0.7);
   E(c, hx - k * 0.07, hy - k * 0.01, k * 0.018, k * 0.018, INK);
   E(c, hx + k * 0.08, hy - k * 0.01, k * 0.042, k * 0.042, eyeC, lw * 0.7);

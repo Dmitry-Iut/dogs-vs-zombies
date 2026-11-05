@@ -1,4 +1,3 @@
-/* ================== Утилиты ================== */
 const $ = (id) => document.getElementById(id);
 const rand = (a, b) => a + Math.random() * (b - a);
 const INK = "#33241C";

@@ -1,10 +1,9 @@
-/* ================== Цикл ================== */
 let last = 0;
 function loop(ts) {
   const dt = Math.min(0.05, (ts - last) / 1000) || 0;
   last = ts;
   if (G && state === "play" && !paused) {
-    for (let i = 0; i < G.speed; i++) update(dt);
+    for (let i = 0; i < G.speed && state === "play"; i++) update(dt);
     hud();
   } else if (G && state === "end") updFx(dt);
   if (G && (state === "play" || state === "end")) render();
@@ -12,15 +11,12 @@ function loop(ts) {
   if (!$("sFinal").hidden) drawScene($("finalCv"), ts / 1000, "final");
   requestAnimationFrame(loop);
 }
-(function boneIcon() {
-  const c = $("boneIcon").getContext("2d");
-  drawBone(c, 32, 32, 40, -0.5, false);
-})();
-$("titleSub").textContent = HER + ", двор в опасности!";
+drawBone($("boneIcon").getContext("2d"), 32, 32, 40, -0.5, false);
 function onResize() {
   resize();
   if (G && state === "play")
     for (const k in cardEls) paintIcon(cardEls[k].querySelector("canvas"), k);
+  if (!$("sLevels").hidden) drawMap();
 }
 window.addEventListener("resize", onResize);
 if (window.ResizeObserver)

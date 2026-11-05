@@ -1,4 +1,59 @@
-/* ================== Отрисовка ================== */
+function drawObst(c, o, x, y, s) {
+  const lw = Math.max(1, s * 0.03);
+  if (o.type === "grave") {
+    E(c, x, y + s * 0.3, s * 0.34, s * 0.1, "#6B4A2E");
+    rr(c, x - s * 0.2, y - s * 0.32, s * 0.4, s * 0.62, s * 0.16, "#9AA3AD", lw);
+    c.fillStyle = "rgba(51,36,28,.45)";
+    c.fillRect(x - s * 0.025, y - s * 0.2, s * 0.05, s * 0.26);
+    c.fillRect(x - s * 0.1, y - s * 0.12, s * 0.2, s * 0.05);
+    c.fillStyle = "rgba(255,255,255,.25)";
+    c.fillRect(x - s * 0.15, y - s * 0.22, s * 0.04, s * 0.36);
+    E(c, x - s * 0.14, y + s * 0.27, s * 0.06, s * 0.03, "#7BC74A");
+  } else if (o.type === "bed") {
+    E(c, x, y + s * 0.12, s * 0.38, s * 0.22, "#7A4E2C", lw);
+    E(c, x, y + s * 0.1, s * 0.3, s * 0.15, "#5E3B20");
+    const cols = ["#FF6B8B", "#FFE36B", "#fff", "#C59BEA", "#FF9F45"];
+    for (let i = 0; i < 5; i++) {
+      const a = (i / 5) * Math.PI * 2 + 0.4,
+        fx = x + Math.cos(a) * s * 0.2,
+        fy = y + s * 0.08 + Math.sin(a) * s * 0.1;
+      c.strokeStyle = "#3E7A2A";
+      c.lineWidth = lw;
+      c.beginPath();
+      c.moveTo(fx, fy);
+      c.lineTo(fx, fy - s * 0.12);
+      c.stroke();
+      E(c, fx, fy - s * 0.14, s * 0.06, s * 0.06, cols[i], lw * 0.6);
+      E(c, fx, fy - s * 0.14, s * 0.022, s * 0.022, "#F0B945");
+    }
+  } else if (o.type === "stump") {
+    E(c, x, y + s * 0.24, s * 0.32, s * 0.09, "rgba(0,0,0,.2)");
+    rr(c, x - s * 0.24, y - s * 0.08, s * 0.48, s * 0.32, s * 0.06, "#8B5A2B", lw);
+    E(c, x, y - s * 0.08, s * 0.24, s * 0.09, "#D9A866", lw);
+    E(c, x, y - s * 0.08, s * 0.14, s * 0.05, null, lw * 0.6);
+    E(c, x, y - s * 0.08, s * 0.05, s * 0.02, "#B8864C");
+  } else if (o.type === "pumpkin") {
+    E(c, x, y + s * 0.26, s * 0.3, s * 0.07, "rgba(0,0,0,.2)");
+    E(c, x - s * 0.13, y + s * 0.06, s * 0.15, s * 0.2, "#D96A22", lw);
+    E(c, x + s * 0.13, y + s * 0.06, s * 0.15, s * 0.2, "#D96A22", lw);
+    E(c, x, y + s * 0.06, s * 0.17, s * 0.22, "#F08A35", lw);
+    rr(c, x - s * 0.03, y - s * 0.24, s * 0.06, s * 0.1, s * 0.02, "#4E7A2A", lw);
+    E(c, x - s * 0.05, y - s * 0.02, s * 0.04, s * 0.1, "rgba(255,255,255,.25)");
+  } else if (o.type === "drift") {
+    E(c, x, y + s * 0.12, s * 0.4, s * 0.2, "#FFFFFF", lw);
+    E(c, x - s * 0.12, y + s * 0.02, s * 0.2, s * 0.15, "#FFFFFF");
+    E(c, x + s * 0.12, y + s * 0.06, s * 0.16, s * 0.12, "#FFFFFF");
+    E(c, x + s * 0.05, y + s * 0.18, s * 0.25, s * 0.06, "#DCEBF5");
+  } else if (o.type === "crater") {
+    c.save();
+    c.globalAlpha = Math.min(1, o.t / 4);
+    E(c, x, y + s * 0.1, s * 0.42, s * 0.25, "#4A3628", lw);
+    E(c, x, y + s * 0.13, s * 0.3, s * 0.15, "#20160F");
+    if (o.t > 34)
+      E(c, x, y - s * 0.2 - (40 - o.t) * 4, s * 0.2, s * 0.15, "rgba(80,80,90,.45)");
+    c.restore();
+  }
+}
 function render() {
   const c = ctx;
   c.setTransform(DPR, 0, 0, DPR, 0, 0);
@@ -10,13 +65,18 @@ function render() {
       (Math.random() - 0.5) * G.shake * 12,
     );
   c.drawImage(bg, 0, 0, W, H);
+  const nip = G.sel === "catnip";
   if (G.sel || G.shovel) {
     const a = 0.07 + 0.05 * Math.sin(performance.now() / 200);
     for (let r = 0; r < ROWS; r++)
       for (let cc = 0; cc < COLS; cc++) {
-        const occ = G.grid[r][cc];
-        if (G.sel && !occ) {
-          c.fillStyle = "rgba(255,255,255," + a + ")";
+        const occ = G.grid[r][cc],
+          ob = G.obst[r][cc];
+        const ok = nip ? occ && occ.sleep : G.sel && !occ && !ob;
+        if (ok) {
+          c.fillStyle = nip
+            ? "rgba(140,230,120," + (a + 0.12) + ")"
+            : "rgba(255,255,255," + a + ")";
           c.fillRect(cc * L.cw + 3, rowY(r) + 3, L.cw - 6, L.ch - 6);
         }
         if (G.shovel && occ) {
@@ -25,33 +85,31 @@ function render() {
         }
       }
   }
-  if (
-    G.sel &&
-    hover &&
-    hover.r >= 0 &&
-    hover.r < ROWS &&
-    hover.c >= 0 &&
-    hover.c < COLS &&
-    !G.grid[hover.r][hover.c]
-  )
-    drawDog(c, G.sel, colX(hover.c), rowY(hover.r + 0.5), L.s * 0.9, {
-      t,
-      alpha: 0.45,
-    });
   const list = [];
+  for (let r = 0; r < ROWS; r++)
+    for (let cc = 0; cc < COLS; cc++) {
+      const o = G.obst[r][cc];
+      if (o)
+        list.push({
+          y: rowY(r + 0.45),
+          f: () => drawObst(c, o, colX(cc), rowY(r + 0.5), L.s),
+        });
+    }
   for (const d of G.dogs)
     list.push({
       y: rowY(d.r + 0.5),
       f: () =>
-        drawDog(c, d.type, colX(d.c), rowY(d.r + 0.5), L.s * 0.9, {
+        drawUnit(c, d.type, colX(d.c), rowY(d.r + 0.5), L.s * 0.9, {
           t,
           ph: d.ph,
           hurt: d.hurt,
           fire: d.fire,
-          armed: d.type === "chihuahua" && d.arm <= 0,
+          armed:
+            (d.type === "chihuahua" && d.arm <= 0) || d.type === "ugolek",
           hpR: d.hp / d.maxHp,
           glow: d.glow,
           chew: d.chew,
+          sleep: d.sleep,
         }),
     });
   for (const z of G.zombies) {
@@ -70,6 +128,21 @@ function render() {
     });
   }
   list.sort((a, b) => a.y - b.y).forEach((o) => o.f());
+  if (
+    G.sel &&
+    hover &&
+    hover.r >= 0 &&
+    hover.r < ROWS &&
+    hover.c >= 0 &&
+    hover.c < COLS &&
+    (nip
+      ? G.grid[hover.r][hover.c]
+      : !G.grid[hover.r][hover.c] && !G.obst[hover.r][hover.c])
+  )
+    drawUnit(c, G.sel, colX(hover.c), rowY(hover.r + 0.5), L.s * 0.9, {
+      t,
+      alpha: nip ? 0.8 : 0.45,
+    });
   for (const p of G.projs) {
     const x = colX(p.col),
       y = rowY(p.y),
@@ -77,6 +150,10 @@ function render() {
     if (p.kind === "snow") {
       E(c, x, y, r * 1.1, r * 1.1, "#F4FBFF", 1);
       E(c, x + r * 0.3, y + r * 0.3, r * 0.5, r * 0.4, "#C6E6FA");
+    } else if (p.kind === "fur") {
+      E(c, x, y, r * 0.95, r * 0.95, "#D3D7DE", 1);
+      E(c, x - r * 0.4, y - r * 0.3, r * 0.35, r * 0.3, "#EEF0F4");
+      E(c, x + r * 0.35, y + r * 0.25, r * 0.3, r * 0.25, "#B9BEC8");
     } else if (p.kind === "frisbee") {
       const wob = Math.sin(p.rot) * 0.25;
       E(c, x, y, r * 1.9, r * 0.8, "#E6533C", 1.2, wob);
@@ -132,6 +209,13 @@ function render() {
       c.fill();
     }
   }
+  if (th.decor === "leaves") {
+    for (let i = 0; i < 10; i++) {
+      const lx = (((i * 0.31) % 1) * W + t * 18 + Math.sin(t + i) * 20) % W,
+        ly = (((i * 0.57) % 1) * H + t * (24 + (i % 4) * 6)) % H;
+      E(c, lx, ly, 5, 2.4, ["#E07A2E", "#D9473B", "#F0B945"][i % 3], 0, t * 2 + i);
+    }
+  }
   if (th.rain) {
     c.strokeStyle = "rgba(180,200,255,.4)";
     c.lineWidth = 1.2;
@@ -145,8 +229,9 @@ function render() {
     c.stroke();
   }
   for (const it of G.items) {
-    const pulse = 1 + 0.06 * Math.sin(performance.now() / 180);
-    drawBone(c, it.x, it.y, L.s * 0.42 * pulse, it.rot, true);
+    const pulse = 1 + 0.06 * Math.sin(performance.now() / 180),
+      sz = L.s * 0.42 * (it.val < 50 ? 0.72 : 1);
+    drawBone(c, it.x, it.y, sz * pulse, it.rot, true);
     if (
       !it.col &&
       it.phase === "rest" &&
@@ -154,7 +239,7 @@ function render() {
       Math.sin(performance.now() / 90) > 0
     ) {
       c.globalAlpha = 0.4;
-      drawBone(c, it.x, it.y, L.s * 0.42, it.rot, false);
+      drawBone(c, it.x, it.y, sz, it.rot, false);
       c.globalAlpha = 1;
     }
   }
@@ -209,4 +294,3 @@ function render() {
   }
   c.restore();
 }
-

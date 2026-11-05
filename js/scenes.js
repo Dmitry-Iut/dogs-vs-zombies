@@ -1,4 +1,3 @@
-/* ================== Титульный и финальный фон ================== */
 function drawScene(cvs, t, mode) {
   if (!cvs._w) return;
   const c = cvs.getContext("2d");
@@ -34,11 +33,11 @@ function drawScene(cvs, t, mode) {
     }
   }
   const s = Math.min(cw * 1.05, 90);
-  const dogs =
+  const pets =
     mode === "final"
-      ? ["corgi", "husky", "pug", "samoyed", "dachshund", "dalmatian"]
-      : ["corgi", "pug", "samoyed", "dalmatian", "bulldog"];
-  const n = dogs.length,
+      ? ["corgi", "barsik", "husky", "luna", "pug", "samoyed"]
+      : ["corgi", "kitten", "pug", "samoyed", "dalmatian"];
+  const n = pets.length,
     step = w / (n + 0.2);
   if (mode !== "final") {
     const zx = w * 0.84,
@@ -60,17 +59,16 @@ function drawScene(cvs, t, mode) {
       s * 0.8,
       t,
     );
-    c.fillStyle = "#E9DCC2";
     for (let x = 0; x < w; x += cw / 3)
       rr(c, x + 3, gy - s * 0.32, cw / 3 - 6, s * 0.34, 2, "#EADDC3", 1);
   }
-  dogs.forEach((k, i) => {
+  pets.forEach((k, i) => {
     const x = step * (i + 0.6),
       y =
         gy +
         ch * (mode === "final" ? 0.9 : 1.05) -
         Math.abs(Math.sin(t * 3 + i)) * s * 0.12;
-    drawDog(c, k, x, y, s * (mode === "final" ? 0.95 : 1), {
+    drawUnit(c, k, x, y, s * (mode === "final" ? 0.95 : 1), {
       t,
       ph: i,
       armed: true,
@@ -96,4 +94,3 @@ function drawScene(cvs, t, mode) {
     });
   }
 }
-

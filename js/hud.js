@@ -1,4 +1,3 @@
-/* ================== HUD ================== */
 let cardEls = {},
   lastBones = -1;
 function buildCards() {
@@ -17,7 +16,7 @@ function buildCards() {
         '</span><span class="cd"></span>';
       b.setAttribute(
         "aria-label",
-        DOGS[k].name + ", " + DOGS[k].cost + " косточек",
+        DOGS[k].name + ", " + costText(DOGS[k].cost),
       );
       b.addEventListener("pointerdown", (e) => {
         e.preventDefault();
@@ -36,6 +35,18 @@ function buildCards() {
     for (const k in cardEls) paintIcon(cardEls[k].querySelector("canvas"), k);
   });
 }
+function costText(n) {
+  if (!n) return "бесплатно";
+  const m10 = n % 10,
+    m100 = n % 100;
+  const w =
+    m10 === 1 && m100 !== 11
+      ? "косточка"
+      : m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)
+        ? "косточки"
+        : "косточек";
+  return n + " " + w;
+}
 function paintIcon(cvs, k, big) {
   const r = cvs.getBoundingClientRect();
   const d = window.devicePixelRatio || 1;
@@ -44,7 +55,7 @@ function paintIcon(cvs, k, big) {
   const c = cvs.getContext("2d");
   c.scale(d, d);
   const s = Math.min(r.width, r.height * 1.02) * (big ? 0.95 : 1.02);
-  drawDog(c, k, r.width / 2, r.height * 0.56, s, {
+  drawUnit(c, k, r.width / 2, r.height * 0.56, s, {
     t: 0,
     armed: false,
     icon: true,
@@ -111,7 +122,6 @@ function hud(force) {
 function updShovel() {
   $("shovelBtn").classList.toggle("on", !!(G && G.shovel));
 }
-let bannerT = null;
 function banner(text) {
   const el = $("banner");
   el.textContent = text;
@@ -131,19 +141,19 @@ function hints() {
   if (G.li === 0) {
     if (G.hint === 0 && G.t > 0.6) {
       tip(
-        "Выбери корги на панели сверху и нажми на газон. Корги приносят косточки.",
+        "Выбери Коржика на панели сверху и нажми на газон. Коржики приносят косточки.",
         7,
       );
       G.hint = 1;
     } else if (G.hint === 1 && G.dogs.some((d) => d.type === "corgi")) {
       tip(
-        "Отлично! Поставь ещё пару корги. Нажимай на косточки, чтобы собрать их.",
+        "Отлично! Поставь ещё пару Коржиков. Нажимай на косточки, чтобы собрать их.",
         6,
       );
       G.hint = 2;
     } else if (G.hint === 2 && G.spawned > 0) {
       tip(
-        "Зомби! Поставь хаски на его дорожку, ниже зомби. Она бросает мячики вверх.",
+        "Зомби! Поставь Бурана на его дорожку, ниже зомби. Он бросает мячики вверх.",
         7,
       );
       G.hint = 3;
@@ -152,5 +162,13 @@ function hints() {
     tip(G.lv.tip, 7);
     G.hint = 1;
   }
+  if (!G.sleepTip && G.dogs.some((d) => d.sleep)) {
+    G.sleepTip = true;
+    tip(
+      G.loadout.includes("catnip")
+        ? "Днём кошки спят. Положи на спящую кошку мяту, чтобы её разбудить."
+        : "Днём кошки спят и ничего не делают. Ставь их ночью или возьми в команду кошачью мяту.",
+      6,
+    );
+  }
 }
-

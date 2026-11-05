@@ -1,4 +1,3 @@
-/* ================== Рисование собак ================== */
 const BREED = {
   corgi: { fur: "#E98B35", light: "#FFF3E2", inner: "#F7A9A0" },
   husky: {
@@ -148,7 +147,6 @@ function drawDog(c, type, x, y, s, o) {
     c.fillRect(-k * 0.6, -k * 0.6, k * 1.2, k * 1.2);
   }
   E(c, 0, k * 0.37, k * 0.3, k * 0.075, "rgba(0,0,0,.22)");
-  // хвост
   const wag = Math.sin(t * 9 + ph) * 0.5;
   c.save();
   c.translate(k * 0.18, k * 0.15);
@@ -172,7 +170,6 @@ function drawDog(c, type, x, y, s, o) {
     c.stroke();
   } else E(c, 0, -k * 0.1, k * 0.035, k * 0.12, B.fur, lw);
   c.restore();
-  // тело
   const bw =
     type === "bulldog"
       ? k * 0.3
@@ -221,7 +218,6 @@ function drawDog(c, type, x, y, s, o) {
     B.light === "#FFFFFF" ? "#F2F4F8" : B.light,
     lw,
   );
-  // голова
   const bob =
     Math.sin(t * 3.2 + ph) * k * 0.012 - (o.fire > 0 ? o.fire * k * 0.03 : 0);
   c.translate(0, bob);

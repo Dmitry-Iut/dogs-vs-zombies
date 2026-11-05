@@ -1,4 +1,3 @@
-/* ================== Звук ================== */
 function silentWav() {
   const n = 800,
     b = new Uint8Array(44 + n),
@@ -23,26 +22,150 @@ function silentWav() {
   b.forEach((x) => (bin += String.fromCharCode(x)));
   return "data:audio/wav;base64," + btoa(bin);
 }
-const MUSIC_VOL = 0.6,
-  MUSIC_EXT = ["mp3", "ogg", "m4a", "wav"],
-  ENDLESS_TRACK_SEC = 60;
+const PITCH = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
+function midi(n) {
+  const m = /^([A-G])(#|b)?(-?\d)$/.exec(n);
+  if (!m) return 0;
+  return (
+    12 * (+m[3] + 1) +
+    PITCH[m[1]] +
+    (m[2] === "#" ? 1 : m[2] === "b" ? -1 : 0)
+  );
+}
+const seq = (s) =>
+  s
+    .trim()
+    .split(/\s+/)
+    .map((t) => (t === "." ? 0 : midi(t)));
+const chordSeq = (s) => (s ? s.split("|").map(seq) : null);
+const mf = (m) => 440 * Math.pow(2, (m - 69) / 12);
+const TRACK_SRC = {
+  menu: {
+    bpm: 104,
+    lead: "triangle",
+    lv: 0.13,
+    arp: 0.02,
+    k: "x.......",
+    s: "....x...",
+    h: ".x.x.x.x",
+    mel: "C5 . E5 G5 C6 . G5 E5  A5 . G5 E5 C5 . D5 E5  F5 . A5 . G5 F5 E5 D5  D5 . G5 . . . B4 D5  E5 . G5 C6 . B5 A5 G5  A5 . E5 . C5 D5 E5 .  F5 E5 D5 C5 D5 . B4 .  C5 . . . G4 . C5 .",
+    bass: "C3 . G3 . C3 . G3 E3  A2 . E3 . A2 . E3 C3  F2 . C3 . F2 . C3 A2  G2 . D3 . G2 . B2 D3  C3 . G3 . C3 . G3 E3  A2 . E3 . A2 . E3 C3  F2 . C3 . G2 . D3 .  C3 . G3 . C3 . . .",
+    chords:
+      "C4 E4 G4|A3 C4 E4|F3 A3 C4|G3 B3 D4|C4 E4 G4|A3 C4 E4|F3 A3 C4|G3 C4 E4",
+  },
+  day: {
+    bpm: 116,
+    lead: "triangle",
+    lv: 0.15,
+    arp: 0.022,
+    k: "x...x...",
+    s: "....x...",
+    h: ".x.x.x.x",
+    mel: "C5 . E5 G5 E5 . C5 D5  E5 . D5 C5 A4 . . .  C5 . E5 G5 A5 . G5 E5  D5 . E5 D5 C5 . . .  A5 . G5 E5 F5 . E5 C5  D5 . E5 F5 G5 . . .  A5 . C6 A5 G5 . E5 C5  D5 . E5 D5 C5 . . .",
+    bass: "C3 . G3 . C3 . G3 .  A2 . E3 . A2 . E3 .  F2 . C3 . G2 . D3 .  G2 . D3 . C3 . G3 .  F2 . C3 . F2 . C3 .  G2 . D3 . G2 . D3 .  A2 . E3 . A2 . E3 .  G2 . D3 . C3 . G3 .",
+    chords:
+      "C4 E4 G4|A3 C4 E4|F3 A3 C4|G3 B3 D4|F3 A3 C4|G3 B3 D4|A3 C4 E4|C4 E4 G4",
+  },
+  evening: {
+    bpm: 92,
+    lead: "sine",
+    lv: 0.16,
+    arp: 0.03,
+    k: "x.......",
+    h: "..x...x.",
+    mel: "A5 . . G5 F5 . C5 .  D5 . F5 . E5 . . .  C5 . D5 . F5 . A5 .  G5 . . . . . . .  Bb5 . A5 . G5 . F5 .  G5 . A5 . C6 . . .  A5 . G5 . F5 . D5 .  E5 . . . F5 . . .",
+    bass: "F2 . C3 . F3 . C3 .  D2 . A2 . D3 . A2 .  Bb1 . F2 . Bb2 . F2 .  C2 . G2 . C3 . G2 .  Bb1 . F2 . Bb2 . F2 .  C2 . G2 . C3 . E3 .  D2 . A2 . D3 . A2 .  C2 . G2 . C3 . G2 .",
+    chords:
+      "F3 A3 C4|D3 F3 A3|Bb2 D3 F3|C3 E3 G3|Bb2 D3 F3|C3 E3 G3|D3 F3 A3|C3 E3 G3",
+  },
+  night: {
+    bpm: 98,
+    lead: "sine",
+    lv: 0.16,
+    arp: 0.02,
+    k: "x.......",
+    h: "..x...x.",
+    mel: "A4 . C5 . E5 . D5 C5  B4 . . . G4 . B4 .  A4 . C5 . F5 . E5 D5  C5 . B4 . A4 . . .  E5 . . D5 C5 . B4 .  C5 . A4 . . . . .  F5 . E5 . D5 . C5 .  B4 . G#4 . A4 . . .",
+    bass: "A2 . E3 . A2 . E3 .  G2 . D3 . G2 . D3 .  F2 . C3 . F2 . C3 .  E2 . B2 . A2 . E3 .  F2 . C3 . F2 . C3 .  G2 . D3 . G2 . D3 .  D2 . A2 . D2 . A2 .  E2 . B2 . E2 . G#2 .",
+    chords:
+      "A3 C4 E4|G3 B3 D4|F3 A3 C4|E3 G#3 B3|F3 A3 C4|G3 B3 D4|D3 F3 A3|E3 G#3 B3",
+  },
+  autumn: {
+    bpm: 112,
+    lead: "square",
+    lv: 0.05,
+    arp: 0.018,
+    k: "x...x...",
+    s: "..x...x.",
+    h: ".x.x.x.x",
+    mel: "D5 . F5 . A5 . G5 F5  E5 . C5 . D5 . . .  D5 . F5 . A5 . C6 B5  A5 . G5 . A5 . . .  F5 . G5 . A5 . D5 .  C5 . D5 . E5 . C5 .  D5 . F5 E5 D5 . C5 A4  D5 . . . . . . .",
+    bass: "D2 . A2 . D3 . A2 .  C2 . G2 . C3 . G2 .  D2 . A2 . D3 . A2 .  G2 . D3 . G2 . B2 .  F2 . C3 . F2 . C3 .  C2 . G2 . C3 . G2 .  Bb1 . F2 . C2 . G2 .  D2 . A2 . D2 . . .",
+    chords:
+      "D3 F3 A3|C3 E3 G3|D3 F3 A3|G3 B3 D4|F3 A3 C4|C3 E3 G3|Bb2 D3 F3|D3 F3 A3",
+  },
+  winter: {
+    bpm: 108,
+    lead: "triangle",
+    lv: 0.14,
+    arp: 0.03,
+    k: "x...x...",
+    h: "x.x.x.x.",
+    mel: "B5 . D6 . B5 . G5 .  A5 . B5 . A5 . F#5 .  G5 . E5 . G5 . B5 .  A5 . . . . . . .  B5 . D6 . E6 . D6 .  C6 . B5 . A5 . G5 .  F#5 . G5 . A5 . F#5 .  G5 . . . . . . .",
+    bass: "G2 . D3 . G2 . D3 .  D2 . A2 . D2 . A2 .  E2 . B2 . E2 . B2 .  D2 . A2 . D2 . F#2 .  G2 . D3 . C3 . G2 .  C2 . G2 . A2 . E2 .  D2 . A2 . D2 . A2 .  G2 . D3 . G2 . . .",
+    chords:
+      "G3 B3 D4|D3 F#3 A3|E3 G3 B3|D3 F#3 A3|G3 B3 D4|C3 E3 G3|D3 F#3 A3|G3 B3 D4",
+  },
+  storm: {
+    bpm: 128,
+    lead: "sawtooth",
+    lv: 0.045,
+    k: "x..x.x..",
+    s: "....x...",
+    h: "xxxxxxxx",
+    mel: "E5 . E5 G5 . F#5 E5 .  D5 . B4 . . . . .  E5 . E5 G5 . A5 B5 .  A5 . G5 . F#5 . . .  C6 . B5 A5 . G5 A5 .  B5 . G5 . E5 . . .  C5 . D5 . E5 . F#5 .  E5 . . . D#5 . . .",
+    bass: "E2 E2 . E2 B2 . E2 .  D2 D2 . D2 A2 . D2 .  C2 C2 . C2 G2 . C2 .  D2 D2 . D2 A2 . D2 .  A1 A1 . A1 E2 . A1 .  E2 E2 . E2 B2 . E2 .  C2 C2 . C2 G2 . C2 .  B1 B1 . B1 F#2 . B1 .",
+    chords:
+      "E3 G3 B3|D3 F#3 A3|C3 E3 G3|D3 F#3 A3|A2 C3 E3|E3 G3 B3|C3 E3 G3|B2 D#3 F#3",
+  },
+  boss: {
+    bpm: 140,
+    lead: "square",
+    lv: 0.06,
+    k: "x...x...",
+    s: "....x...",
+    h: ".x.x.x.x",
+    mel: "A4 . C5 A4 E5 . D#5 .  D5 . C5 B4 A4 . . .  A4 . C5 A4 F5 . E5 .  D5 . C5 . B4 . G#4 .",
+    bass: "A1 A1 . A1 E2 . A1 .  G1 G1 . G1 D2 . G1 .  F1 F1 . F1 C2 . F1 .  E1 E1 . E1 B1 . G#1 .",
+  },
+};
+const MUSIC = {};
+for (const k in TRACK_SRC) {
+  const s = TRACK_SRC[k];
+  MUSIC[k] = Object.assign({}, s, {
+    mel: seq(s.mel),
+    bass: seq(s.bass),
+    chords: chordSeq(s.chords),
+  });
+}
+const beat = (p, st) => !!p && p[st % p.length] === "x";
 const S = {
   ctx: null,
   on: true,
   mvol: 1,
   timer: null,
-  track: "day",
+  track: "menu",
   step: 0,
   next: 0,
   last: {},
+  wantMusic: false,
   init() {
     if (this.ctx) {
-      if (this.ctx.state === "suspended") this.ctx.resume();
+      if (this.ctx.state === "suspended" && !document.hidden)
+        this.ctx.resume();
       return;
     }
     const AC = window.AudioContext || window.webkitAudioContext;
     if (!AC) return;
-    // iPhone: играть и в беззвучном режиме (iOS 16.4+ — audioSession, старее — тихий <audio> переключает сессию)
     try {
       if (navigator.audioSession) navigator.audioSession.type = "playback";
       else {
@@ -68,6 +191,10 @@ const S = {
     this.mg = c.createGain();
     this.mg.gain.value = 0.5 * this.mvol;
     this.mg.connect(this.master);
+    this.mus = c.createBiquadFilter();
+    this.mus.type = "lowpass";
+    this.mus.frequency.value = 4200;
+    this.mus.connect(this.mg);
     const len = c.sampleRate;
     this.nb = c.createBuffer(1, len, c.sampleRate);
     const d = this.nb.getChannelData(0);
@@ -78,20 +205,11 @@ const S = {
     this.on = v;
     if (this.master)
       this.master.gain.setTargetAtTime(v ? 1 : 0, this.ctx.currentTime, 0.03);
-    this.applyMusicVol();
   },
   setMusicVol(v) {
     this.mvol = v;
     if (this.mg)
       this.mg.gain.setTargetAtTime(0.5 * v, this.ctx.currentTime, 0.03);
-    this.applyMusicVol();
-  },
-  applyMusicVol() {
-    const a = this.audio;
-    if (!a) return;
-    const v = this.on ? MUSIC_VOL * this.mvol : 0;
-    a.volume = v;
-    a.muted = v === 0;
   },
   thr(name, gap) {
     const n = performance.now();
@@ -161,6 +279,39 @@ const S = {
     o.stop(now + 0.18);
     this.noise(0.06, 0.08, 1800 * p, "bandpass", now, null, 1);
   },
+  meow(p) {
+    const c = this.ctx;
+    if (!c || !this.thr("meow", 160)) return;
+    p = p || 1;
+    const now = c.currentTime,
+      f = (560 + Math.random() * 80) * p;
+    const o = c.createOscillator(),
+      g = c.createGain(),
+      bp = c.createBiquadFilter();
+    o.type = "sawtooth";
+    o.frequency.setValueAtTime(f * 0.75, now);
+    o.frequency.linearRampToValueAtTime(f * 1.3, now + 0.12);
+    o.frequency.exponentialRampToValueAtTime(f * 0.7, now + 0.36);
+    bp.type = "bandpass";
+    bp.Q.value = 2.2;
+    bp.frequency.setValueAtTime(900 * p, now);
+    bp.frequency.linearRampToValueAtTime(1700 * p, now + 0.14);
+    bp.frequency.linearRampToValueAtTime(800 * p, now + 0.36);
+    g.gain.setValueAtTime(0.0001, now);
+    g.gain.exponentialRampToValueAtTime(0.22, now + 0.04);
+    g.gain.exponentialRampToValueAtTime(0.0001, now + 0.38);
+    o.connect(bp);
+    bp.connect(g);
+    g.connect(this.sfx);
+    o.start(now);
+    o.stop(now + 0.42);
+  },
+  hiss() {
+    if (this.thr("hiss", 200)) this.noise(0.35, 0.18, 3800, "highpass");
+  },
+  spit() {
+    if (this.thr("spit", 90)) this.tone(900, 0.07, "triangle", 0.07, 500);
+  },
   pop() {
     this.tone(660, 0.14, "sine", 0.25, 1320);
     this.tone(990, 0.12, "triangle", 0.08, 1600);
@@ -178,9 +329,7 @@ const S = {
     this.tone(170, 0.25, "sawtooth", 0.08, 60);
   },
   groan() {
-    if (!this.thr("groan", 2500)) return;
-    const c = this.ctx;
-    if (!c) return;
+    if (!this.thr("groan", 2500) || !this.ctx) return;
     this.tone(rand(95, 125), 0.9, "sawtooth", 0.05, rand(70, 85));
   },
   chomp() {
@@ -223,145 +372,61 @@ const S = {
     const c = this.ctx;
     if (!c) return;
     const n = c.currentTime;
-    const seq = win ? [72, 76, 79, 84, 79, 84] : [67, 63, 60, 55];
-    seq.forEach((m, i) =>
-      this.tone(
-        440 * Math.pow(2, (m - 69) / 12),
-        0.28,
-        "triangle",
-        0.22,
-        null,
-        n + i * 0.14,
-      ),
+    const sq = win ? [72, 76, 79, 84, 79, 84] : [67, 63, 60, 55];
+    sq.forEach((m, i) =>
+      this.tone(mf(m), 0.28, "triangle", 0.22, null, n + i * 0.14),
     );
   },
-  /* Музыка из файлов music/1.mp3, 2.mp3, 3.mp3… (номера подряд). Меню — своя синтезаторная мелодия. На каждую игру — случайный трек,
-     в бесконечном режиме трек меняется каждую минуту. Нет файлов — играет синтезатор */
-  list: null,
-  listCbs: null,
-  audio: null,
-  elapsed: 0,
-  lastT: 0,
-  gen: 0,
-  startMusic(track, fresh) {
-    this.track = track;
+  startMusic(track) {
+    this.track = MUSIC[track] ? track : "menu";
     this.wantMusic = true;
     if (!this.ctx) return;
-    this.stopMusic(true);
-    const g = this.gen;
-    this.loadList((l) => {
-      if (g !== this.gen) return;
-      if (l.length && track !== "menu") {
-        if (fresh || !this.audio) this.pickTrack();
-        else {
-          this.applyMusicVol();
-          this.audio.play().catch(() => {});
-        }
-      } else {
-        this.step = 0;
-        this.next = this.ctx.currentTime + 0.1;
-        this.timer = setInterval(() => this.sched(), 40);
-      }
-    });
+    clearInterval(this.timer);
+    this.step = 0;
+    this.next = this.ctx.currentTime + 0.1;
+    this.timer = setInterval(() => this.sched(), 40);
   },
   stopMusic(keep) {
-    this.gen++;
     clearInterval(this.timer);
     this.timer = null;
-    if (this.audio) this.audio.pause();
     if (!keep) this.wantMusic = false;
-  },
-  pickTrack() {
-    const l = this.list;
-    let a;
-    do a = l[Math.floor(Math.random() * l.length)];
-    while (l.length > 1 && a === this.audio);
-    if (this.audio) this.audio.pause();
-    this.audio = a;
-    a.currentTime = 0;
-    this.lastT = 0;
-    this.elapsed = 0;
-    this.applyMusicVol();
-    a.play().catch(() => {});
-  },
-  loadList(cb) {
-    if (this.list) return cb(this.list);
-    if (this.listCbs) return this.listCbs.push(cb);
-    this.listCbs = [cb];
-    const list = [];
-    const probe = (n, e) => {
-      if (e >= MUSIC_EXT.length) {
-        this.list = list;
-        const cbs = this.listCbs;
-        this.listCbs = null;
-        cbs.forEach((f) => f(list));
-        return;
-      }
-      const a = new Audio();
-      let done = false;
-      a.preload = "auto";
-      a.loop = true;
-      const ok = () => {
-          if (done) return;
-          done = true;
-          a.addEventListener("timeupdate", () => this.tick(a));
-          list.push(a);
-          probe(n + 1, 0);
-        },
-        bad = () => {
-          if (done) return;
-          done = true;
-          probe(n, e + 1);
-        };
-      a.addEventListener("canplay", ok);
-      a.addEventListener("loadeddata", ok);
-      a.addEventListener("error", bad);
-      a.src = "music/" + n + "." + MUSIC_EXT[e];
-      a.load();
-    };
-    probe(1, 0);
-  },
-  tick(a) {
-    if (a !== this.audio) return;
-    let d = a.currentTime - this.lastT;
-    if (d < 0) d += a.duration || 0;
-    this.lastT = a.currentTime;
-    if (d > 0 && d < 2) this.elapsed += d;
-    if (
-      this.elapsed >= ENDLESS_TRACK_SEC &&
-      G &&
-      G.endless &&
-      state === "play" &&
-      !paused
-    )
-      this.pickTrack();
   },
   sched() {
     const c = this.ctx,
-      Tk = TRACKS[this.track];
+      Tk = MUSIC[this.track];
     const spb = 60 / Tk.bpm / 2;
-    const mf = (m) => 440 * Math.pow(2, (m - 69) / 12);
-    while (this.next < c.currentTime + 0.18) {
-      const i = this.step % Tk.mel.length,
-        m = Tk.mel[i],
-        b = Tk.bass[i];
-      if (m)
-        this.tone(mf(m), spb * 1.7, Tk.lead, Tk.lv, null, this.next, this.mg);
-      if (b)
-        this.tone(mf(b), spb * 1.9, "triangle", 0.2, null, this.next, this.mg);
-      if (i % 2 === 1)
-        this.noise(0.03, 0.035, 7000, "highpass", this.next, this.mg);
-      if (Tk.kick && i % (Tk.kick === true ? 4 : Tk.kick) === 0)
-        this.tone(130, 0.14, "sine", 0.3, 45, this.next, this.mg);
-      if (Tk.snare && i % 8 === 4)
-        this.noise(0.12, 0.1, 2000, "bandpass", this.next, this.mg, 0.8);
-      if (Tk.chords && i % 8 === 0)
-        Tk.chords[(i / 8) % Tk.chords.length].forEach((n) =>
-          this.tone(mf(n), spb * 7.5, "sine", 0.04, null, this.next, this.mg),
-        );
+    if (this.next < c.currentTime) this.next = c.currentTime + 0.05;
+    while (this.next < c.currentTime + 0.2) {
+      const st = this.step,
+        at = this.next;
+      const m = Tk.mel[st % Tk.mel.length],
+        b = Tk.bass[st % Tk.bass.length];
+      if (m) this.tone(mf(m), spb * 1.7, Tk.lead, Tk.lv, null, at, this.mus);
+      if (b) this.tone(mf(b), spb * 1.9, "triangle", 0.2, null, at, this.mus);
+      if (Tk.chords) {
+        const ch = Tk.chords[Math.floor(st / 8) % Tk.chords.length];
+        if (st % 8 === 0)
+          ch.forEach((n) =>
+            this.tone(mf(n), spb * 7.5, "sine", 0.035, null, at, this.mus),
+          );
+        if (Tk.arp)
+          this.tone(
+            mf(ch[st % ch.length] + 12),
+            spb * 0.9,
+            "sine",
+            Tk.arp,
+            null,
+            at,
+            this.mus,
+          );
+      }
+      if (beat(Tk.k, st)) this.tone(130, 0.14, "sine", 0.3, 45, at, this.mg);
+      if (beat(Tk.s, st))
+        this.noise(0.12, 0.1, 2000, "bandpass", at, this.mg, 0.8);
+      if (beat(Tk.h, st))
+        this.noise(0.03, 0.035, 7000, "highpass", at, this.mg);
       this.next += spb;
       this.step++;
     }
   },
 };
-

@@ -1,6 +1,6 @@
-/* ================== Данные ================== */
 const COLS = 5,
-  ROWS = 8;
+  ROWS = 8,
+  SLOTS = 7;
 const DOGS = {
   corgi: {
     name: "Корги Коржик",
@@ -37,12 +37,44 @@ const DOGS = {
     hp: 300,
     desc: "Заряжается 6 секунд, потом тявкает так, что зомби рядом разлетаются. Сама убегает домой.",
   },
+  kitten: {
+    name: "Котёнок Пушок",
+    cost: 0,
+    cd: 7.5,
+    hp: 300,
+    cat: true,
+    desc: "Бесплатный! Плюётся комочками шерсти, но достаёт только на три клетки. Днём спит.",
+  },
+  barsik: {
+    name: "Кот Барсик",
+    cost: 25,
+    cd: 7.5,
+    hp: 300,
+    cat: true,
+    desc: "Приносит маленькие косточки, а подрастая — обычные. Днём спит.",
+  },
+  murka: {
+    name: "Кошка Мурка",
+    cost: 75,
+    cd: 7.5,
+    hp: 300,
+    cat: true,
+    desc: "Шипит на всех зомби в четырёх клетках перед собой. Двери ей не помеха. Днём спит.",
+  },
   dalmatian: {
     name: "Далматин Пятнышко",
     cost: 200,
     cd: 7.5,
     hp: 300,
     desc: "Бросает по два мячика за раз.",
+  },
+  catnip: {
+    name: "Кошачья мята",
+    cost: 75,
+    cd: 7.5,
+    hp: 1,
+    item: true,
+    desc: "Положи на спящую кошку — она проснётся и будет работать даже днём.",
   },
   pug: {
     name: "Мопс Соня",
@@ -58,6 +90,14 @@ const DOGS = {
     hp: 300,
     desc: "Хватает зомби прямо перед собой и утаскивает в нору. Потом долго жуёт.",
   },
+  luna: {
+    name: "Сиамская Луна",
+    cost: 75,
+    cd: 30,
+    hp: 300,
+    cat: true,
+    desc: "Зомби, который её укусит, попадает под гипноз: разворачивается и дерётся со своими. Днём спит.",
+  },
   retriever: {
     name: "Ретривер Санни",
     cost: 175,
@@ -72,98 +112,34 @@ const DOGS = {
     hp: 1500,
     desc: "Лечит соседних собак тёплым какао из своего бочонка.",
   },
-};
-const SHORT = {
-  corgi: "Корги",
-  husky: "Хаски",
-  bulldog: "Бульдог",
-  samoyed: "Самоед",
-  chihuahua: "Чихуахуа",
-  dalmatian: "Далматин",
-  pug: "Мопс",
-  dachshund: "Такса",
-  retriever: "Ретривер",
-  bernard: "Сенбернар",
-};
-const DOG_ORDER = [
-  "corgi",
-  "husky",
-  "bulldog",
-  "samoyed",
-  "chihuahua",
-  "dalmatian",
-  "pug",
-  "dachshund",
-  "retriever",
-  "bernard",
-];
-const UNLOCK = {
-  corgi: 1,
-  husky: 1,
-  bulldog: 2,
-  samoyed: 3,
-  chihuahua: 4,
-  dalmatian: 5,
-  pug: 6,
-  dachshund: 7,
-  retriever: 8,
-  bernard: 9,
-};
-const SLOTS = 6;
-const availFor = (i) =>
-  i === "endless"
-    ? DOG_ORDER.slice()
-    : DOG_ORDER.filter((k) => UNLOCK[k] <= i + 1);
-const themeTrack = (th) =>
-  th === "boss"
-    ? "boss"
-    : ["night", "evening", "fog", "storm"].includes(th)
-      ? "night"
-      : "day";
-const E_THEMES = [
-  "day",
-  "afternoon",
-  "sunset",
-  "evening",
-  "night",
-  "autumn",
-  "winter",
-  "fog",
-  "storm",
-];
-const ENDLESS_INFO = {
-  name: "Бесконечный режим",
-  bones: 300,
-  note: {
-    t: "Без конца",
-    d: "Волны идут одна за другой и становятся всё сильнее. Каждые 3 волны пылесосы заряжаются снова, а каждая 8-я волна — Зомби-Король. В команду можно взять любых собак.",
+  ugolek: {
+    name: "Чёрный кот Уголёк",
+    cost: 125,
+    cd: 50,
+    hp: 300,
+    cat: true,
+    desc: "Перебегает дорогу зомби — и всех вокруг сносит огромным взрывом неудачи. Оставляет яму. Днём спит.",
   },
 };
-function makeEndlessLv() {
-  return {
-    name: "Бесконечный режим",
-    theme: "day",
-    bones: 300,
-    sky: 10,
-    waves: [],
-    mix: { basic: 1 },
-    endless: true,
-    tip: "Продержись как можно дольше! Каждые 75 секунд начинается новая волна.",
-  };
-}
-function endlessMix(w) {
-  const m = { basic: 3 };
-  if (w >= 2) m.helmet = 2;
-  if (w >= 3) m.runner = 1.5;
-  if (w >= 4) m.bucket = 1.2;
-  if (w >= 5) {
-    m.skater = 1.3;
-    m.fatty = 0.8;
-  }
-  if (w >= 6) m.door = 1.2;
-  if (w >= 7) m.giant = 0.25 + w * 0.03;
-  return m;
-}
+const SHORT = {
+  corgi: "Коржик",
+  husky: "Буран",
+  bulldog: "Батон",
+  samoyed: "Снежок",
+  chihuahua: "Чика",
+  kitten: "Пушок",
+  barsik: "Барсик",
+  murka: "Мурка",
+  dalmatian: "Пятнышко",
+  catnip: "Мята",
+  pug: "Соня",
+  dachshund: "Колбаска",
+  luna: "Луна",
+  retriever: "Санни",
+  bernard: "Бруно",
+  ugolek: "Уголёк",
+};
+const DOG_ORDER = Object.keys(DOGS);
 const ZOMB = {
   basic: {
     name: "Обычный зомби",
@@ -227,7 +203,7 @@ const ZOMB = {
     base: 3000,
     speed: 0.12,
     dps: 900,
-    desc: "Огромный, со столбом в руке. Расплющивает собаку за пару секунд — встречай его чихуахуа!",
+    desc: "Огромный, со столбом в руке. Расплющивает собаку за пару секунд — встречай его Чикой!",
   },
   boss: {
     name: "Зомби-Король",
@@ -238,11 +214,19 @@ const ZOMB = {
     desc: "Огромный, занимает три дорожки. Призывает свиту, кидается гнилыми костями и топчет собак.",
   },
 };
+const MIX_ALL = {
+  basic: 3,
+  helmet: 2,
+  runner: 2,
+  bucket: 1.5,
+  fatty: 1,
+  skater: 1.5,
+  door: 1.5,
+};
 const LEVELS = [
   {
     name: "Солнечный дворик",
     theme: "day",
-    dogs: 2,
     bones: 150,
     first: 22,
     count: 9,
@@ -259,7 +243,6 @@ const LEVELS = [
   {
     name: "После обеда",
     theme: "afternoon",
-    dogs: 3,
     bones: 150,
     first: 18,
     count: 13,
@@ -269,15 +252,19 @@ const LEVELS = [
     waves: [0.55, 1],
     waveSize: 5,
     sky: 9.5,
+    obst: [["bed", 3]],
     newDogs: ["bulldog"],
     newZ: "helmet",
     color: "#C9A23A",
-    tip: "Бульдог Батон — живая стена. Ставь его впереди собак, которые бросают мячики.",
+    note: {
+      t: "Клумбы",
+      d: "На клумбы собак не поставить. Зомби топчут их без стеснения.",
+    },
+    tip: "Батон — живая стена. Ставь его впереди собак, которые бросают мячики.",
   },
   {
     name: "Розовый закат",
     theme: "sunset",
-    dogs: 4,
     bones: 175,
     first: 16,
     count: 17,
@@ -287,16 +274,16 @@ const LEVELS = [
     waves: [0.5, 1],
     waveSize: 6,
     sky: 10,
+    obst: [["bed", 2]],
     newDogs: ["samoyed"],
     newZ: "runner",
     color: "#D86A6A",
-    tip: "Самоед замедляет зомби. Особенно пригодится против бегунов!",
+    tip: "Снежок замедляет зомби. Особенно пригодится против бегунов!",
   },
   {
     name: "Сиреневый вечер",
     theme: "evening",
-    dogs: 5,
-    bones: 200,
+    bones: 175,
     first: 15,
     count: 20,
     gap0: 11,
@@ -304,17 +291,21 @@ const LEVELS = [
     mix: { basic: 3, helmet: 2, runner: 2, bucket: 1.5 },
     waves: [0.5, 1],
     waveSize: 7,
-    sky: 11,
-    newDogs: ["chihuahua"],
+    sky: 13,
+    obst: [["bed", 2]],
+    newDogs: ["kitten", "chihuahua"],
     newZ: "bucket",
     color: "#7B5BB8",
-    tip: "Чихуахуа стоит всего 25 косточек. Поставь её заранее на пути зомби с ведром.",
+    note: {
+      t: "Вечер",
+      d: "Стемнело — проснулись кошки. Днём они спят, а ночью работают. Косточки с неба падают реже.",
+    },
+    tip: "Котёнок Пушок бесплатный, но стреляет недалеко. Ставь его ближе к зомби.",
   },
   {
     name: "Лунная ночь",
     theme: "night",
-    dogs: 6,
-    bones: 250,
+    bones: 175,
     first: 15,
     count: 24,
     gap0: 10,
@@ -322,65 +313,43 @@ const LEVELS = [
     mix: { basic: 3, helmet: 2, runner: 2, bucket: 1.5, fatty: 1 },
     waves: [0.35, 0.7, 1],
     waveSize: 7,
-    sky: 15,
-    newDogs: ["dalmatian"],
+    sky: 16,
+    obst: [["grave", 3]],
+    newDogs: ["barsik"],
     newZ: "fatty",
     color: "#33508A",
-    tip: "Ночью косточки с неба падают реже. Корги нужны как никогда.",
+    note: {
+      t: "Могилы",
+      d: "На могилы никого не поставить, а во время больших волн из них вылезают зомби.",
+    },
+    tip: "Ночью косточек мало. Барсик дешёвый и приносит косточки — сначала маленькие.",
+  },
+  {
+    name: "Старое кладбище",
+    theme: "graveyard",
+    bones: 200,
+    first: 15,
+    count: 26,
+    gap0: 9.5,
+    gap1: 4.8,
+    mix: { basic: 3, helmet: 2, runner: 2, bucket: 1.5, fatty: 1 },
+    waves: [0.35, 0.7, 1],
+    waveSize: 8,
+    sky: 16,
+    obst: [["grave", 6]],
+    newDogs: ["murka"],
+    newZ: null,
+    color: "#4B3F6B",
+    tip: "Мурка шипит на всех зомби в четырёх клетках перед собой. Отлично против толпы!",
   },
   {
     name: "Осенний листопад",
     theme: "autumn",
-    dogs: 6,
     bones: 250,
     first: 15,
     count: 26,
     gap0: 9.5,
     gap1: 4.8,
-    mix: { basic: 3, helmet: 2, runner: 2, bucket: 1.5, fatty: 1, skater: 1.5 },
-    waves: [0.35, 0.7, 1],
-    waveSize: 8,
-    sky: 10,
-    newDogs: ["pug"],
-    newZ: "skater",
-    color: "#C7772E",
-    tip: "Скейтеры быстрые. Самоед с его снежками тут очень кстати.",
-  },
-  {
-    name: "Снежный двор",
-    theme: "winter",
-    dogs: 6,
-    bones: 250,
-    first: 15,
-    count: 28,
-    gap0: 9,
-    gap1: 4.6,
-    mix: {
-      basic: 3,
-      helmet: 2,
-      runner: 1.5,
-      bucket: 1.5,
-      fatty: 1,
-      skater: 1.5,
-      door: 1.5,
-    },
-    waves: [0.35, 0.7, 1],
-    waveSize: 8,
-    sky: 11,
-    newDogs: ["dachshund"],
-    newZ: "door",
-    color: "#5E95BF",
-    tip: "Дверь держит много мячиков. Далматины пробивают её быстрее всех.",
-  },
-  {
-    name: "Туманное утро",
-    theme: "fog",
-    dogs: 6,
-    bones: 275,
-    first: 15,
-    count: 30,
-    gap0: 9,
-    gap1: 4.5,
     mix: {
       basic: 3,
       helmet: 2,
@@ -388,11 +357,97 @@ const LEVELS = [
       bucket: 1.5,
       fatty: 1,
       skater: 1.5,
-      door: 1.5,
     },
+    waves: [0.35, 0.7, 1],
+    waveSize: 8,
+    sky: 10,
+    obst: [["stump", 3]],
+    newDogs: ["dalmatian", "catnip"],
+    newZ: "skater",
+    color: "#C7772E",
+    note: {
+      t: "День",
+      d: "Днём кошки спят. Положи на спящую кошку кошачью мяту — и она проснётся.",
+    },
+    tip: "Скейтеры быстрые. Пятнышко бросает по два мячика — то, что нужно.",
+  },
+  {
+    name: "Тыквенный огород",
+    theme: "harvest",
+    bones: 250,
+    first: 15,
+    count: 28,
+    gap0: 9.2,
+    gap1: 4.7,
+    mix: {
+      basic: 3,
+      helmet: 2,
+      runner: 2,
+      bucket: 1.5,
+      fatty: 1,
+      skater: 1.5,
+    },
+    waves: [0.35, 0.7, 1],
+    waveSize: 8,
+    sky: 10,
+    obst: [["pumpkin", 5]],
+    newDogs: ["pug"],
+    newZ: null,
+    color: "#D98A2B",
+    tip: "Соня чихает на три клетки вперёд и задевает всех на пути.",
+  },
+  {
+    name: "Снежный двор",
+    theme: "winter",
+    bones: 250,
+    first: 15,
+    count: 28,
+    gap0: 9,
+    gap1: 4.6,
+    mix: MIX_ALL,
+    waves: [0.35, 0.7, 1],
+    waveSize: 8,
+    sky: 11,
+    obst: [["drift", 4]],
+    newDogs: ["dachshund"],
+    newZ: "door",
+    color: "#5E95BF",
+    tip: "Дверь держит много мячиков. Пятнышко пробивает её быстрее всех.",
+  },
+  {
+    name: "Морозная ночь",
+    theme: "frost",
+    bones: 250,
+    first: 15,
+    count: 30,
+    gap0: 9,
+    gap1: 4.5,
+    mix: MIX_ALL,
     waves: [0.3, 0.65, 1],
     waveSize: 9,
-    sky: 12,
+    sky: 16,
+    obst: [
+      ["drift", 3],
+      ["grave", 2],
+    ],
+    newDogs: ["luna"],
+    newZ: null,
+    color: "#3E5C8A",
+    tip: "Луна гипнотизирует того, кто её укусит. Поставь её перед толстяком или зомби с ведром!",
+  },
+  {
+    name: "Туманная ночь",
+    theme: "fog",
+    bones: 275,
+    first: 15,
+    count: 30,
+    gap0: 9,
+    gap1: 4.5,
+    mix: MIX_ALL,
+    waves: [0.3, 0.65, 1],
+    waveSize: 9,
+    sky: 16,
+    obst: [["grave", 3]],
     newDogs: ["retriever"],
     newZ: null,
     note: {
@@ -400,39 +455,71 @@ const LEVELS = [
       d: "Верхние ряды скрыты туманом. Зомби появятся неожиданно, так что строй оборону заранее на всех дорожках.",
     },
     color: "#7E8C99",
-    tip: "В тумане зомби не видно. Не жди их — ставь собак на все дорожки.",
+    tip: "В тумане зомби не видно. Не жди их — ставь защитников на все дорожки.",
   },
   {
     name: "Гроза",
     theme: "storm",
-    dogs: 6,
     bones: 300,
     first: 14,
     count: 34,
     gap0: 8.5,
     gap1: 4.2,
-    mix: {
-      basic: 3,
-      helmet: 2,
-      runner: 2,
-      bucket: 1.5,
-      fatty: 1,
-      skater: 1.5,
-      door: 1.5,
-      giant: 0.8,
-    },
+    mix: Object.assign({ giant: 0.8 }, MIX_ALL),
     waves: [0.3, 0.6, 1],
     waveSize: 9,
-    sky: 14,
+    sky: 16,
+    obst: [["stump", 2]],
     newDogs: ["bernard"],
     newZ: "giant",
     color: "#3D4A73",
-    tip: "Великан топчет собак мгновенно. Поставь перед ним чихуахуа!",
+    tip: "Великан топчет собак мгновенно. Поставь перед ним Чику!",
+  },
+  {
+    name: "Полнолуние",
+    theme: "moon",
+    bones: 300,
+    first: 14,
+    count: 36,
+    gap0: 8.2,
+    gap1: 4,
+    mix: Object.assign({ giant: 1 }, MIX_ALL),
+    waves: [0.3, 0.6, 1],
+    waveSize: 10,
+    sky: 16,
+    obst: [["grave", 4]],
+    newDogs: ["ugolek"],
+    newZ: null,
+    color: "#2A2F55",
+    tip: "Уголёк взрывается почти сразу и сносит всех вокруг. Прибереги его для великанов!",
+  },
+  {
+    name: "Рассвет перед битвой",
+    theme: "dawn",
+    bones: 300,
+    first: 14,
+    count: 40,
+    gap0: 8,
+    gap1: 3.8,
+    mix: Object.assign({ giant: 1 }, MIX_ALL),
+    waves: [0.25, 0.5, 0.75, 1],
+    waveSize: 10,
+    sky: 10,
+    obst: [
+      ["bed", 2],
+      ["stump", 1],
+    ],
+    newDogs: [],
+    newZ: null,
+    color: "#E59A5B",
+    note: {
+      t: "Четыре волны",
+      d: "Последняя проверка перед Королём. Уже светло — кошки спят, так что бери мяту или надейся на собак.",
+    },
   },
   {
     name: "Логово Зомби-Короля",
     theme: "boss",
-    dogs: 6,
     bones: 500,
     first: 14,
     count: 14,
@@ -441,7 +528,7 @@ const LEVELS = [
     mix: { basic: 3, helmet: 2, runner: 2, bucket: 1, skater: 1.5, door: 1 },
     waves: [],
     waveSize: 0,
-    sky: 10,
+    sky: 12,
     boss: true,
     bossT: 58,
     newDogs: [],
@@ -450,6 +537,22 @@ const LEVELS = [
     tip: "Король идёт по трём средним дорожкам. Строй оборону в центре!",
   },
 ];
+const UNLOCK = {};
+LEVELS.forEach((lv, i) =>
+  (lv.newDogs || []).forEach((k) => (UNLOCK[k] = i)),
+);
+const availFor = (i) =>
+  i === "endless"
+    ? DOG_ORDER.slice()
+    : DOG_ORDER.filter((k) => UNLOCK[k] <= i);
+const OBST_NAME = {
+  bed: "Тут клумба",
+  stump: "Тут пень",
+  pumpkin: "Тут тыква",
+  drift: "Тут сугроб",
+  grave: "Тут могила",
+  crater: "Тут яма",
+};
 const THEMES = {
   day: {
     g1: "#8AD058",
@@ -457,6 +560,7 @@ const THEMES = {
     street: "#A38F72",
     deck: "#C48D5A",
     tint: null,
+    track: "day",
   },
   afternoon: {
     g1: "#8DCB54",
@@ -464,6 +568,7 @@ const THEMES = {
     street: "#A88E68",
     deck: "#C48D5A",
     tint: "rgba(255,190,70,.13)",
+    track: "day",
   },
   sunset: {
     g1: "#8CC556",
@@ -471,6 +576,8 @@ const THEMES = {
     street: "#A5876C",
     deck: "#C48D5A",
     tint: "rgba(255,95,120,.20)",
+    track: "day",
+    fence: "hedge",
   },
   evening: {
     g1: "#86C158",
@@ -478,6 +585,9 @@ const THEMES = {
     street: "#8E7E74",
     deck: "#B98656",
     tint: "rgba(80,50,160,.30)",
+    night: true,
+    lamps: true,
+    track: "evening",
   },
   night: {
     g1: "#7DBA55",
@@ -486,6 +596,21 @@ const THEMES = {
     deck: "#A97B50",
     tint: "rgba(8,18,60,.50)",
     stars: true,
+    night: true,
+    lamps: true,
+    track: "night",
+  },
+  graveyard: {
+    g1: "#6E9E58",
+    g2: "#62914D",
+    street: "#5A5560",
+    deck: "#9A6E4A",
+    tint: "rgba(30,10,60,.45)",
+    stars: true,
+    night: true,
+    fence: "iron",
+    decor: "stones",
+    track: "night",
   },
   autumn: {
     g1: "#A9BA50",
@@ -493,7 +618,18 @@ const THEMES = {
     street: "#9C8064",
     deck: "#C48D5A",
     tint: "rgba(255,140,40,.12)",
-    leaves: true,
+    decor: "leaves",
+    track: "autumn",
+  },
+  harvest: {
+    g1: "#B4B65A",
+    g2: "#A5A84E",
+    street: "#A08060",
+    deck: "#C48D5A",
+    tint: "rgba(255,150,50,.16)",
+    decor: "leaves",
+    fence: "hedge",
+    track: "autumn",
   },
   winter: {
     g1: "#E3EEF4",
@@ -501,7 +637,24 @@ const THEMES = {
     street: "#AEB9C4",
     deck: "#B98656",
     tint: "rgba(140,180,255,.10)",
+    decor: "snow",
+    fence: "snow",
     snow: true,
+    track: "winter",
+  },
+  frost: {
+    g1: "#D8E6F0",
+    g2: "#C6D8E6",
+    street: "#8E9AA8",
+    deck: "#A97B50",
+    tint: "rgba(20,40,110,.42)",
+    decor: "snow",
+    fence: "snow",
+    stars: true,
+    snow: true,
+    night: true,
+    lamps: true,
+    track: "winter",
   },
   fog: {
     g1: "#80B35B",
@@ -510,6 +663,8 @@ const THEMES = {
     deck: "#B48252",
     tint: "rgba(70,80,100,.28)",
     fog: true,
+    night: true,
+    track: "night",
   },
   storm: {
     g1: "#70A651",
@@ -518,6 +673,30 @@ const THEMES = {
     deck: "#A07048",
     tint: "rgba(10,20,55,.50)",
     rain: true,
+    night: true,
+    decor: "puddles",
+    track: "storm",
+  },
+  moon: {
+    g1: "#78AE58",
+    g2: "#6AA04C",
+    street: "#5C5868",
+    deck: "#A07048",
+    tint: "rgba(25,20,70,.42)",
+    stars: true,
+    bigMoon: true,
+    night: true,
+    fence: "iron",
+    decor: "stones",
+    track: "evening",
+  },
+  dawn: {
+    g1: "#8FCD5A",
+    g2: "#80BF4C",
+    street: "#AA8C70",
+    deck: "#C48D5A",
+    tint: "rgba(255,170,120,.16)",
+    track: "day",
   },
   boss: {
     g1: "#7DB555",
@@ -526,77 +705,80 @@ const THEMES = {
     deck: "#A07048",
     tint: "rgba(85,0,40,.46)",
     stars: true,
+    night: true,
+    fence: "iron",
+    decor: "stones",
+    track: "boss",
   },
 };
-const TRACKS = {
-  menu: {
-    bpm: 104,
-    lead: "triangle",
-    lv: 0.13,
-    kick: 8,
-    snare: true,
-    mel: [
-      72, 0, 76, 79, 84, 0, 79, 76, 81, 0, 79, 76, 72, 0, 74, 76, 77, 0, 81, 0,
-      79, 77, 76, 74, 74, 0, 79, 0, 0, 0, 71, 74, 76, 0, 79, 84, 0, 83, 81, 79,
-      81, 0, 76, 0, 72, 74, 76, 0, 77, 76, 74, 72, 74, 0, 71, 0, 72, 0, 0, 0,
-      67, 0, 72, 0,
-    ],
-    bass: [
-      48, 0, 55, 0, 48, 0, 55, 52, 45, 0, 52, 0, 45, 0, 52, 48, 41, 0, 48, 0,
-      41, 0, 48, 45, 43, 0, 50, 0, 43, 0, 47, 50, 48, 0, 55, 0, 48, 0, 55, 52,
-      45, 0, 52, 0, 45, 0, 52, 48, 41, 0, 48, 0, 43, 0, 50, 0, 48, 0, 55, 0, 48,
-      0, 0, 0,
-    ],
-    chords: [
-      [60, 64, 67],
-      [57, 60, 64],
-      [53, 57, 60],
-      [55, 59, 62],
-      [60, 64, 67],
-      [57, 60, 64],
-      [53, 57, 60],
-      [55, 60, 64],
-    ],
-  },
-  day: {
-    bpm: 116,
-    lead: "triangle",
-    lv: 0.15,
-    mel: [
-      72, 0, 76, 79, 76, 0, 72, 74, 76, 0, 74, 72, 69, 0, 0, 0, 72, 0, 76, 79,
-      81, 0, 79, 76, 74, 0, 76, 74, 72, 0, 0, 0,
-    ],
-    bass: [
-      48, 0, 55, 0, 48, 0, 55, 0, 45, 0, 52, 0, 45, 0, 52, 0, 41, 0, 48, 0, 43,
-      0, 50, 0, 43, 0, 50, 0, 48, 0, 55, 0,
-    ],
-  },
-  night: {
-    bpm: 98,
-    lead: "sine",
-    lv: 0.16,
-    mel: [
-      69, 0, 72, 0, 76, 0, 74, 72, 71, 0, 0, 0, 67, 0, 71, 0, 69, 0, 72, 0, 77,
-      0, 76, 74, 72, 0, 71, 0, 69, 0, 0, 0,
-    ],
-    bass: [
-      45, 0, 52, 0, 45, 0, 52, 0, 43, 0, 50, 0, 43, 0, 50, 0, 41, 0, 48, 0, 41,
-      0, 48, 0, 40, 0, 47, 0, 45, 0, 52, 0,
-    ],
-  },
-  boss: {
-    bpm: 140,
-    lead: "square",
-    lv: 0.06,
-    mel: [
-      69, 0, 72, 69, 76, 0, 75, 0, 74, 0, 72, 71, 69, 0, 0, 0, 69, 0, 72, 69,
-      77, 0, 76, 0, 74, 0, 72, 0, 71, 0, 68, 0,
-    ],
-    bass: [
-      33, 33, 0, 33, 40, 0, 33, 0, 31, 31, 0, 31, 38, 0, 31, 0, 29, 29, 0, 29,
-      36, 0, 29, 0, 28, 28, 0, 28, 35, 0, 32, 0,
-    ],
-    kick: true,
+const isNight = (th) => !!THEMES[th].night;
+const themeTrack = (th) => THEMES[th].track;
+const E_THEMES = [
+  "day",
+  "afternoon",
+  "sunset",
+  "evening",
+  "night",
+  "autumn",
+  "harvest",
+  "winter",
+  "frost",
+  "fog",
+  "storm",
+  "graveyard",
+  "moon",
+  "dawn",
+];
+const ENDLESS_INFO = {
+  name: "Бесконечный режим",
+  bones: 300,
+  note: {
+    t: "Без конца",
+    d: "Волны идут одна за другой и становятся всё сильнее. День сменяет ночь, каждые 3 волны пылесосы заряжаются снова, а каждая 8-я волна — Зомби-Король. В команду можно взять любых собак и кошек.",
   },
 };
-
+function makeEndlessLv() {
+  return {
+    name: "Бесконечный режим",
+    theme: "day",
+    bones: 300,
+    sky: 10,
+    waves: [],
+    mix: { basic: 1 },
+    endless: true,
+    tip: "Продержись как можно дольше! Каждые 75 секунд начинается новая волна.",
+  };
+}
+function endlessMix(w) {
+  const m = { basic: 3 };
+  if (w >= 2) m.helmet = 2;
+  if (w >= 3) m.runner = 1.5;
+  if (w >= 4) m.bucket = 1.2;
+  if (w >= 5) {
+    m.skater = 1.3;
+    m.fatty = 0.8;
+  }
+  if (w >= 6) m.door = 1.2;
+  if (w >= 7) m.giant = 0.25 + w * 0.03;
+  return m;
+}
+const FINAL_TEXT =
+  "Зомби-Король побеждён, и во дворе снова тихо. Собаки и кошки празднуют победу — теперь их можно гладить всех по очереди!";
+const LOSE_TEXT =
+  "Не беда! Попробуй ещё раз: побольше Коржиков в начале, Батоны впереди, а ночью — бесплатные котята.";
+const WIN_TEXT = [
+  "Первые зомби прогнаны. Коржики уже несут косточки для следующего боя.",
+  "Батон доволен: ни один зомби не прошёл мимо его зубов.",
+  "Закат догорел, во дворе тихо. Снежок лепит новые снежки.",
+  "Стемнело, и проснулись кошки. Пушок гордо умывается после боя.",
+  "Ночь позади. Барсик пересчитывает косточки и требует добавки.",
+  "Кладбище затихло. Мурка шипит на всякий случай ещё разок.",
+  "Листья кружатся, собаки гоняются за ними. Двор в безопасности.",
+  "Огород спасён, тыквы целы. Соня чихнула на прощание.",
+  "Снег скрипит, а Колбаска роет новую нору в сугробе.",
+  "Морозная ночь отступила. Луна сворачивается клубком у батареи.",
+  "Туман рассеялся, и стало видно: ни одного зомби!",
+  "Гроза прошла. Бруно разливает всем тёплое какао.",
+  "Полная луна светит спокойно. Уголёк сидит на заборе и щурится.",
+  "Солнце встаёт. Осталась последняя битва — с самим Королём.",
+];

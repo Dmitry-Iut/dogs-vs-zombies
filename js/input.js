@@ -1,4 +1,3 @@
-/* ================== Управление ================== */
 function local(e) {
   const r = cv.getBoundingClientRect();
   return {
@@ -6,8 +5,6 @@ function local(e) {
     y: ((e.clientY - r.top) * H) / (r.height || 1),
   };
 }
-/* Палец: косточки собираются с запасом и «проведением» по ним; собака встаёт там, где палец отпустили,
-   а пока палец на экране — под ним видна полупрозрачная собака */
 let aim = null;
 const cellOf = (p) => ({
   c: Math.floor(p.x / L.cw),
@@ -53,7 +50,7 @@ cv.addEventListener("pointercancel", () => {
   aim = null;
   hover = null;
 });
-cv.addEventListener("pointerleave", (e) => {
+cv.addEventListener("pointerleave", () => {
   if (aim === null) hover = null;
 });
 function grabBone(x, y, touch) {
@@ -77,27 +74,35 @@ function tap(x, y) {
   const inF = c >= 0 && c < COLS && r >= 0 && r < ROWS;
   if (G.shovel) {
     if (inF && G.grid[r][c]) {
-      const d = G.grid[r][c];
       burst(colX(c), rowY(r + 0.7), 10, "rgba(120,80,40,.7)", 120, 3);
-      removeDog(d, true);
+      removeDog(G.grid[r][c], true);
       S.dig();
     }
     G.shovel = false;
     updShovel();
     return;
   }
-  if (G.sel) {
-    if (!inF) {
-      G.sel = null;
-      return;
-    }
-    if (G.grid[r][c]) {
-      S.err();
-      float(colX(c), rowY(r + 0.5), "Занято", "#FFE0E6", 14);
-      return;
-    }
-    place(G.sel, r, c);
+  if (!G.sel) return;
+  if (!inF) {
+    G.sel = null;
+    return;
   }
+  if (G.sel === "catnip") {
+    useNip(r, c);
+    return;
+  }
+  const o = G.obst[r][c];
+  if (o) {
+    S.err();
+    float(colX(c), rowY(r + 0.5), OBST_NAME[o.type], "#FFE0E6", 14);
+    return;
+  }
+  if (G.grid[r][c]) {
+    S.err();
+    float(colX(c), rowY(r + 0.5), "Занято", "#FFE0E6", 14);
+    return;
+  }
+  place(G.sel, r, c);
 }
 $("shovelBtn").addEventListener("click", () => {
   if (state !== "play" || paused) return;
@@ -117,12 +122,15 @@ $("pauseBtn").addEventListener("click", () => {
 });
 function pauseGame() {
   paused = true;
+  aim = null;
   S.stopMusic(true);
   syncSoundLabels();
   show("sPause");
 }
 document.addEventListener("visibilitychange", () => {
-  if (document.hidden && state === "play" && !paused) pauseGame();
+  if (document.hidden) {
+    if (state === "play" && !paused) pauseGame();
+    if (S.ctx) S.ctx.suspend();
+  } else if (S.ctx) S.ctx.resume();
 });
 document.addEventListener("pointerdown", () => S.init());
-

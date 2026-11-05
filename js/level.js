@@ -1,4 +1,3 @@
-/* ================== Уровень ================== */
 function buildEvents(lv) {
   const ev = [];
   let t = lv.first;
@@ -17,6 +16,7 @@ function buildEvents(lv) {
           ? "Последняя волна!"
           : "Огромная волна зомби!",
     });
+    ev.push({ t: base + 1.5, graves: true });
     for (let j = 0; j < lv.waveSize; j++)
       ev.push({ t: base + 2.5 + j * 0.8, type: wpick(lv.mix) });
   });
@@ -26,6 +26,20 @@ function buildEvents(lv) {
   }
   ev.sort((a, b) => a.t - b.t);
   return ev;
+}
+function makeObst(lv, seed) {
+  const g = Array.from({ length: ROWS }, () => Array(COLS).fill(null));
+  const rnd = mulberry(seed * 7919 + 3);
+  (lv.obst || []).forEach(([type, n]) => {
+    for (let k = 0, tries = 0; k < n && tries < 300; tries++) {
+      const r = Math.floor(rnd() * (ROWS - 2)),
+        c = Math.floor(rnd() * COLS);
+      if (g[r][c] || (r > 0 && g[r - 1][c]) || g[r + 1][c]) continue;
+      g[r][c] = { type };
+      k++;
+    }
+  });
+  return g;
 }
 let curLoadout = null;
 try {
@@ -49,6 +63,8 @@ function startLevel(i) {
     bones: lv.bones,
     dogs: [],
     grid: Array.from({ length: ROWS }, () => Array(COLS).fill(null)),
+    obst: makeObst(lv, endless ? 99 : i),
+    night: isNight(lv.theme),
     zombies: [],
     projs: [],
     lobs: [],
@@ -72,12 +88,15 @@ function startLevel(i) {
     speed: 1,
     winT: 0,
     hint: 0,
+    sleepTip: false,
     lastCol: -1,
     kills: 0,
     wave: 1,
     waveT: 0,
     nextSpawn: 20,
     burstQ: [],
+    lightT: rand(5, 9),
+    lightning: 0,
     loadout: loadoutFor(i),
   };
   G.total = G.events.filter((e) => e.type).length;
@@ -87,6 +106,8 @@ function startLevel(i) {
     : "Уровень " + (i + 1) + " · " + lv.name;
   $("speedBtn").textContent = "x1";
   $("speedBtn").classList.remove("on");
+  aim = null;
+  hover = null;
   buildBg();
   buildCards();
   updShovel();
@@ -94,10 +115,12 @@ function startLevel(i) {
   hideAll();
   state = "play";
   paused = false;
-  G.lightT = rand(5, 9);
-  G.lightning = 0;
-  S.startMusic(themeTrack(lv.theme), true);
+  S.startMusic(themeTrack(lv.theme));
 }
+const foe = (z) => !z.dead && !z.hypno;
+const frontY = (z) => (z.type === "boss" ? z.y + 0.8 : z.y);
+const inSpan = (col, z) =>
+  z.type === "boss" ? col >= z.col - 1 && col <= z.col + 1 : z.col === col;
 function spawnZ(type, col, y) {
   const D = ZOMB[type];
   if (col == null) {
@@ -119,6 +142,7 @@ function spawnZ(type, col, y) {
     flash: 0,
     slowT: 0,
     eating: false,
+    hypno: false,
   };
   if (type === "boss") {
     z.col = 2;
@@ -133,43 +157,30 @@ function spawnZ(type, col, y) {
   }
   G.zombies.push(z);
   if (Math.random() < 0.35) S.groan();
+  return z;
 }
-const inSpan = (col, z) =>
-  z.type === "boss" ? col >= z.col - 1 && col <= z.col + 1 : z.col === col;
 function dmgZ(z, a) {
   if (z.dead) return;
   const had = z.hp > z.base;
   z.hp -= a;
   z.flash = 0.08;
-  if (had && z.hp <= z.base && (z.type === "helmet" || z.type === "bucket")) {
-    const x = colX(z.col),
-      y = rowY(z.y);
-    burst(
-      x,
-      y - L.s * 0.25,
-      8,
-      z.type === "helmet" ? "#F2C230" : "#A3ACB5",
-      160,
-      4,
-    );
+  if (had && z.hp <= z.base) {
+    const col = { helmet: "#F2C230", bucket: "#A3ACB5", door: "#8B5A2B" }[
+      z.type
+    ];
+    if (col) burst(colX(z.col), rowY(z.y) - L.s * 0.25, 8, col, 160, 4);
   }
   if (z.hp <= 0) killZ(z);
 }
 function killZ(z) {
   z.dead = true;
-  G.kills++;
-  const x = z.type === "boss" ? colX(z.col) : colX(z.col),
+  if (!z.hypno) G.kills++;
+  const boss = z.type === "boss",
+    x = colX(z.col),
     y = rowY(z.y);
-  burst(
-    x,
-    y,
-    z.type === "boss" ? 60 : 14,
-    "#86AD5E",
-    z.type === "boss" ? 360 : 180,
-    z.type === "boss" ? 7 : 4,
-  );
+  burst(x, y, boss ? 60 : 14, "#86AD5E", boss ? 360 : 180, boss ? 7 : 4);
   S.splat();
-  if (z.type === "boss") {
+  if (boss) {
     G.boss = null;
     G.shake = 1.2;
     S.boom();
@@ -221,7 +232,6 @@ function float(x, y, text, color, size) {
     max: 1.1,
   });
 }
-
 function place(type, r, c) {
   const D = DOGS[type];
   if (G.bones < D.cost) {
@@ -245,10 +255,13 @@ function place(type, r, c) {
     fire: 0,
     fireT: 0.6,
     prod: 6 + Math.random() * 2,
-    arm: 6,
+    age: 0,
+    arm: type === "ugolek" ? 1.2 : 6,
     burst: 0,
     glow: 0,
     chew: 0,
+    sleep: !!D.cat && !G.night,
+    nip: false,
   };
   G.grid[r][c] = d;
   G.dogs.push(d);
@@ -257,7 +270,41 @@ function place(type, r, c) {
   G.sel = null;
   burst(colX(c), rowY(r + 0.85), 8, "rgba(120,80,40,.6)", 90, 3);
   S.place();
-  S.bark(type === "chihuahua" ? 1.6 : type === "bulldog" ? 0.7 : 1);
+  if (D.cat) S.meow(type === "kitten" ? 1.3 : type === "ugolek" ? 0.8 : 1);
+  else S.bark(type === "chihuahua" ? 1.6 : type === "bulldog" ? 0.7 : 1);
+}
+function useNip(r, c) {
+  const d = G.grid[r][c],
+    D = DOGS.catnip;
+  if (!d || !d.sleep) {
+    S.err();
+    float(colX(c), rowY(r + 0.5), "Только на спящую кошку", "#FFE0E6", 13);
+    return;
+  }
+  if (G.bones < D.cost) {
+    S.err();
+    nope("bonesBox");
+    return;
+  }
+  if (G.cds.catnip > 0) {
+    S.err();
+    nope(cardEls.catnip);
+    return;
+  }
+  G.bones -= D.cost;
+  G.cds.catnip = D.cd;
+  G.sel = null;
+  d.sleep = false;
+  d.nip = true;
+  d.glow = 1;
+  burst(colX(c), rowY(r + 0.5), 14, "#7BC74A", 150, 4);
+  float(colX(c), rowY(r + 0.1), "Проснулась!", "#D8F5C0", 15);
+  S.meow(1);
+}
+function applyNight() {
+  G.night = isNight(G.lv.theme);
+  for (const d of G.dogs)
+    if (DOGS[d.type].cat) d.sleep = !G.night && !d.nip;
 }
 function removeDog(d, quiet) {
   if (G.grid[d.r][d.c] === d) G.grid[d.r][d.c] = null;
@@ -265,16 +312,26 @@ function removeDog(d, quiet) {
   if (i >= 0) G.dogs.splice(i, 1);
   if (!quiet) {
     float(colX(d.c), rowY(d.r + 0.2), "Ай!", "#FFE0E6", 16);
-    burst(colX(d.c), rowY(d.r + 0.5), 10, BREED[d.type].fur, 150, 4);
+    const B = DOGS[d.type].cat ? CAT[d.type] : BREED[d.type];
+    burst(colX(d.c), rowY(d.r + 0.5), 10, B.fur, 150, 4);
     S.yelp();
   }
 }
-function hasTarget(d) {
+function hasTarget(d, range) {
   for (const z of G.zombies) {
-    if (z.dead || !inSpan(d.c, z)) continue;
-    if (z.y < d.r + 0.5 && z.y > -0.85) return true;
+    if (!foe(z) || !inSpan(d.c, z)) continue;
+    const fy = frontY(z);
+    if (fy < d.r + 0.5 && z.y > -0.85 && (!range || fy > d.r + 0.5 - range))
+      return true;
   }
   return false;
+}
+function inFront(d, range) {
+  return G.zombies.filter((z) => {
+    if (!foe(z) || !inSpan(d.c, z) || z.y <= -0.85) return false;
+    const fy = frontY(z);
+    return fy < d.r + 0.5 && fy > d.r + 0.5 - range;
+  });
 }
 function shoot(d, kind) {
   G.projs.push({ col: d.c, y: d.r + 0.12, kind, dmg: 20, rot: 0 });
@@ -287,7 +344,7 @@ function explode(d) {
   const x = colX(d.c),
     y = rowY(d.r + 0.5);
   for (const z of G.zombies) {
-    if (z.dead || !inSpan(d.c, z)) continue;
+    if (!foe(z) || !inSpan(d.c, z)) continue;
     const zy = z.type === "boss" ? z.y + 0.8 : z.y;
     if (Math.abs(zy - (d.r + 0.5)) < 1.05) dmgZ(z, 1800);
   }
@@ -301,7 +358,26 @@ function explode(d) {
   removeDog(d, true);
   float(x, y - L.ch * 0.05, "Убежала домой", "#FFF5E1", 12);
 }
-function dropBone(x, y) {
+function doom(d) {
+  const x = colX(d.c),
+    y = rowY(d.r + 0.5);
+  for (const z of G.zombies) {
+    if (!foe(z)) continue;
+    let near = false;
+    for (let c = d.c - 1; c <= d.c + 1; c++) if (inSpan(c, z)) near = true;
+    if (near && Math.abs(frontY(z) - (d.r + 0.5)) <= 2.6) dmgZ(z, 1800);
+  }
+  burst(x, y, 40, "#2B2A33", 320, 7);
+  burst(x, y, 20, "#F5D33A", 260, 5);
+  ring(x, y, L.s * 2.4, "#F5D33A");
+  G.shake = 0.9;
+  S.boom();
+  S.meow(0.7);
+  float(x, y - L.ch * 0.5, "МЯУ!", "#F5D33A", 26);
+  removeDog(d, true);
+  G.obst[d.r][d.c] = { type: "crater", t: 40 };
+}
+function dropBone(x, y, val) {
   G.items.push({
     x,
     y: y - 10,
@@ -311,7 +387,7 @@ function dropBone(x, y) {
     y1: y + L.ch * 0.22,
     phase: "arc",
     at: 0,
-    val: 50,
+    val,
     life: 9,
     rot: rand(-0.4, 0.4),
   });
@@ -325,7 +401,14 @@ function collect(it) {
   it.tx = br.left + 18 - cr.left;
   it.ty = br.top + br.height / 2 - cr.top;
 }
-
+function shooter(d, dt, interval, fn, range) {
+  d.fireT -= dt;
+  if (d.fireT <= 0 && hasTarget(d, range)) {
+    d.fireT = interval;
+    fn();
+  }
+  if (d.fireT < 0) d.fireT = 0;
+}
 function updateDog(d, dt) {
   d.hurt = Math.max(0, d.hurt - dt);
   d.fire = Math.max(0, d.fire - dt * 4);
@@ -334,31 +417,54 @@ function updateDog(d, dt) {
     removeDog(d);
     return;
   }
+  if (d.sleep) return;
   const x = colX(d.c),
     y = rowY(d.r + 0.5);
-  if (d.type === "corgi") {
+  if (d.type === "corgi" || d.type === "barsik") {
+    d.age += dt;
     d.prod -= dt;
     if (d.prod < 1.2) d.glow = Math.max(d.glow, 1 - d.prod / 1.2);
     if (d.prod <= 0) {
       d.prod = 13 + Math.random() * 3;
-      dropBone(x, y);
+      const big = d.type === "corgi" || d.age > 60;
+      dropBone(x, y, big ? 50 : 25);
+      if (d.type === "barsik" && big && !d.grown) {
+        d.grown = true;
+        float(x, y - L.ch * 0.45, "Подрос!", "#FFD166", 13);
+      }
     }
   } else if (
     d.type === "husky" ||
     d.type === "samoyed" ||
     d.type === "dalmatian"
   ) {
-    d.fireT -= dt;
     if (d.burst > 0) {
       d.burst -= dt;
       if (d.burst <= 0) shoot(d, "ball");
     }
-    if (d.fireT <= 0 && hasTarget(d)) {
-      d.fireT = 1.45;
+    shooter(d, dt, 1.45, () => {
       shoot(d, d.type === "samoyed" ? "snow" : "ball");
       if (d.type === "dalmatian") d.burst = 0.18;
-    }
-    if (d.fireT < 0) d.fireT = 0;
+    });
+  } else if (d.type === "kitten") {
+    shooter(
+      d,
+      dt,
+      1.45,
+      () => {
+        G.projs.push({
+          col: d.c,
+          y: d.r + 0.12,
+          kind: "fur",
+          dmg: 20,
+          rot: 0,
+          lim: d.r + 0.5 - 3.3,
+        });
+        d.fire = 1;
+        S.spit();
+      },
+      3.2,
+    );
   } else if (d.type === "chihuahua") {
     if (d.arm > 0) {
       d.arm -= dt;
@@ -368,29 +474,29 @@ function updateDog(d, dt) {
       }
     } else
       for (const z of G.zombies) {
-        if (z.dead || !inSpan(d.c, z)) continue;
+        if (!foe(z) || !inSpan(d.c, z)) continue;
         const zy = z.type === "boss" ? z.y + 0.5 : z.y;
         if (zy >= d.r - 0.15 && zy <= d.r + 0.8) {
           explode(d);
           break;
         }
       }
-  } else if (d.type === "pug") {
+  } else if (d.type === "ugolek") {
+    d.arm -= dt;
+    if (d.arm <= 0) doom(d);
+  } else if (d.type === "pug" || d.type === "murka") {
     d.fireT -= dt;
     if (d.fireT <= 0) {
-      const hits = G.zombies.filter(
-        (z) =>
-          !z.dead &&
-          inSpan(d.c, z) &&
-          z.y > -0.85 &&
-          (z.type === "boss" ? z.y + 0.8 : z.y) < d.r + 0.5 &&
-          (z.type === "boss" ? z.y + 0.8 : z.y) > d.r + 0.5 - 3.4,
-      );
+      const murka = d.type === "murka";
+      const hits = inFront(d, murka ? 4.3 : 3.4);
       if (hits.length) {
         d.fireT = 1.6;
         d.fire = 1;
-        hits.forEach((z) => dmgZ(z, 25));
-        sneeze(d);
+        hits.forEach((z) =>
+          dmgZ(z, murka ? (z.type === "door" && z.hp > z.base ? 60 : 20) : 25),
+        );
+        if (murka) hissFx(d);
+        else sneeze(d);
       } else d.fireT = 0;
     }
   } else if (d.type === "dachshund") {
@@ -400,8 +506,8 @@ function updateDog(d, dt) {
     } else {
       let tg = null;
       for (const z of G.zombies) {
-        if (z.dead || !inSpan(d.c, z)) continue;
-        const zy = z.type === "boss" ? z.y + 0.8 : z.y;
+        if (!foe(z) || !inSpan(d.c, z)) continue;
+        const zy = frontY(z);
         if (zy >= d.r - 1.25 && zy <= d.r + 0.6) {
           tg = z;
           break;
@@ -422,9 +528,7 @@ function updateDog(d, dt) {
       }
     }
   } else if (d.type === "retriever") {
-    d.fireT -= dt;
-    if (d.fireT <= 0 && hasTarget(d)) {
-      d.fireT = 1.6;
+    shooter(d, dt, 1.6, () => {
       d.fire = 1;
       G.projs.push({
         col: d.c,
@@ -435,8 +539,7 @@ function updateDog(d, dt) {
         hit: new Set(),
       });
       S.bark(0.95);
-    }
-    if (d.fireT < 0) d.fireT = 0;
+    });
   } else if (d.type === "bernard") {
     for (let r2 = d.r - 1; r2 <= d.r + 1; r2++)
       for (let c2 = d.c - 1; c2 <= d.c + 1; c2++) {
@@ -461,26 +564,73 @@ function updateDog(d, dt) {
       }
   }
 }
-function sneeze(d) {
+function cloud(d, color, n, reach) {
   const x = colX(d.c),
     y = rowY(d.r + 0.2);
-  for (let i = 0; i < 8; i++) {
+  for (let i = 0; i < n; i++) {
     const l = rand(0.6, 0.85);
     G.parts.push({
       x: x + rand(-14, 14),
       y,
       vx: rand(-18, 18),
-      vy: -rand(L.ch * 3.6, L.ch * 4.4),
+      vy: -rand(L.ch * reach, L.ch * (reach + 0.8)),
       life: l,
       max: l,
-      color: "rgba(210,238,190,.75)",
+      color,
       size: rand(7, 13),
       g: 0,
     });
   }
+}
+function sneeze(d) {
+  cloud(d, "rgba(210,238,190,.75)", 8, 3.6);
   S.noise(0.18, 0.22, 2600, "highpass");
   if (Math.random() < 0.15)
-    float(x + L.cw * 0.25, rowY(d.r + 0.1), "Апчхи!", "#E2F5D0", 14);
+    float(colX(d.c) + L.cw * 0.25, rowY(d.r + 0.1), "Апчхи!", "#E2F5D0", 14);
+}
+function hissFx(d) {
+  cloud(d, "rgba(205,180,240,.7)", 10, 4.6);
+  S.hiss();
+  if (Math.random() < 0.15)
+    float(colX(d.c) + L.cw * 0.25, rowY(d.r + 0.1), "Ш-ш-ш!", "#E2CCFF", 14);
+}
+function hypnotize(z, d) {
+  z.hypno = true;
+  z.eating = false;
+  z.slowT = 0;
+  removeDog(d, true);
+  const x = colX(d.c),
+    y = rowY(d.r + 0.4);
+  burst(x, y, 16, "#B98CF0", 180, 4);
+  ring(x, y, L.s, "#E2CCFF");
+  float(x, y - L.ch * 0.3, "Гипноз!", "#E2CCFF", 18);
+  S.meow(1.1);
+}
+function hypnoAhead(z) {
+  const fy = frontY(z);
+  for (const h of G.zombies) {
+    if (!h.hypno || h.dead || !inSpan(h.col, z)) continue;
+    const dy = h.y - fy;
+    if (dy >= -0.2 && dy <= 0.6) return h;
+  }
+  return null;
+}
+function updateHypno(z, dt) {
+  let tg = null;
+  for (const o of G.zombies) {
+    if (!foe(o) || !inSpan(z.col, o)) continue;
+    const dy = z.y - frontY(o);
+    if (dy >= -0.2 && dy <= 0.6) {
+      tg = o;
+      break;
+    }
+  }
+  z.eating = !!tg;
+  if (tg) {
+    dmgZ(tg, z.dps * dt);
+    S.chomp();
+  } else z.y -= z.speed * dt;
+  if (z.y < -1.2) z.dead = true;
 }
 function endlessTick(dt) {
   G.waveT += dt;
@@ -499,6 +649,7 @@ function endlessTick(dt) {
     const th =
       G.wave % 8 === 0 ? "boss" : E_THEMES[(G.wave - 1) % E_THEMES.length];
     G.lv.theme = th;
+    applyNight();
     buildBg();
     S.startMusic(themeTrack(th));
     G.lightT = rand(5, 9);
@@ -523,90 +674,113 @@ function endlessTick(dt) {
     for (let j = 0; j < 3 + G.wave; j++) G.burstQ.push(G.t + 2 + j * 0.8);
   }
 }
+function bossTick(z, dt) {
+  z.summonT -= dt;
+  if (z.summonT <= 0) {
+    z.summonT = z.enraged ? 7 : 10;
+    const n = z.enraged ? 3 : 2;
+    for (let i = 0; i < n; i++)
+      spawnZ(
+        ["basic", "helmet", "runner"][Math.floor(Math.random() * 3)],
+        null,
+        -0.7,
+      );
+    S.roar();
+    G.shake = 0.4;
+    float(colX(z.col), rowY(z.y - 0.9), "Слуги, ко мне!", "#FFB3B3", 15);
+  }
+  z.throwT -= dt;
+  if (z.throwT <= 0) {
+    z.throwT = z.enraged ? 6 : 9;
+    if (G.dogs.length) {
+      const d = G.dogs[Math.floor(Math.random() * G.dogs.length)];
+      G.lobs.push({
+        x0: colX(z.col) + L.cw * 0.4,
+        y0: rowY(z.y - 0.6),
+        d,
+        t: 0,
+        dur: 1.1,
+      });
+    }
+  }
+  if (!z.enraged && z.hp < z.maxHp / 2) {
+    z.enraged = true;
+    z.speed *= 1.5;
+    banner("Король в ярости!");
+    S.roar();
+    G.shake = 0.7;
+  }
+}
+function reachHouse(z) {
+  const boss = z.type === "boss",
+    front = frontY(z);
+  if (front <= ROWS + 0.05) return;
+  const cols = boss ? [z.col, z.col - 1, z.col + 1] : [z.col];
+  for (const c of cols) {
+    const m = G.mowers[c];
+    if (m.state === "go" && m.y >= z.y - (boss ? 1 : 0.55)) return;
+    if (m.state === "idle") {
+      m.state = "go";
+      S.mower();
+      return;
+    }
+  }
+  if (front > ROWS + 0.3) lose();
+}
 function updateZ(z, dt) {
   z.flash -= dt;
   z.slowT -= dt;
-  const slow = z.slowT > 0 ? 0.5 : 1;
-  const boss = z.type === "boss";
+  if (z.hypno) {
+    updateHypno(z, dt);
+    return;
+  }
+  const slow = z.slowT > 0 ? 0.5 : 1,
+    boss = z.type === "boss",
+    bite = z.dps * slow * dt;
   let eating = false;
-  if (boss) {
+  const h = hypnoAhead(z);
+  if (h) {
+    eating = true;
+    dmgZ(h, bite);
+  } else if (boss) {
     for (let c = z.col - 1; c <= z.col + 1; c++)
       for (let r = 0; r < ROWS; r++) {
         const d = G.grid[r][c];
         if (d && z.y >= r - 0.6 && z.y <= r + 0.7) {
           eating = true;
-          d.hp -= z.dps * slow * dt;
+          d.hp -= bite;
           d.hurt = 0.15;
         }
       }
-    z.summonT -= dt;
-    if (z.summonT <= 0) {
-      z.summonT = z.enraged ? 7 : 10;
-      const n = z.enraged ? 3 : 2;
-      for (let i = 0; i < n; i++)
-        spawnZ(
-          ["basic", "helmet", "runner"][Math.floor(Math.random() * 3)],
-          null,
-          -0.7,
-        );
-      S.roar();
-      G.shake = 0.4;
-      float(colX(z.col), rowY(z.y - 0.9), "Слуги, ко мне!", "#FFB3B3", 15);
-    }
-    z.throwT -= dt;
-    if (z.throwT <= 0) {
-      z.throwT = z.enraged ? 6 : 9;
-      if (G.dogs.length) {
-        const d = G.dogs[Math.floor(Math.random() * G.dogs.length)];
-        G.lobs.push({
-          x0: colX(z.col) + L.cw * 0.4,
-          y0: rowY(z.y - 0.6),
-          d,
-          t: 0,
-          dur: 1.1,
-        });
-      }
-    }
-    if (!z.enraged && z.hp < z.maxHp / 2) {
-      z.enraged = true;
-      z.speed *= 1.5;
-      banner("Король в ярости!");
-      S.roar();
-      G.shake = 0.7;
-    }
-  } else {
+  } else
     for (let r = 0; r < ROWS; r++) {
       const d = G.grid[r][z.col];
       if (d && z.y >= r - 0.1 && z.y <= r + 0.7) {
+        if (d.type === "luna" && !d.sleep) {
+          hypnotize(z, d);
+          return;
+        }
         eating = true;
-        d.hp -= z.dps * slow * dt;
+        d.hp -= bite;
         d.hurt = 0.15;
         break;
       }
     }
-  }
+  if (boss) bossTick(z, dt);
   z.eating = eating;
   if (eating) S.chomp();
   else z.y += z.speed * slow * dt;
-  const front = boss ? z.y + 0.8 : z.y;
-  if (front > ROWS + 0.05) {
-    const cols = boss ? [z.col, z.col - 1, z.col + 1] : [z.col];
-    let ok = false;
-    for (const c of cols) {
-      const m = G.mowers[c];
-      if (m.state === "go") {
-        ok = true;
-        break;
-      }
-      if (m.state === "idle") {
-        m.state = "go";
-        S.mower();
-        ok = true;
-        break;
-      }
-    }
-    if (!ok && front > ROWS + 0.3) lose();
+  reachHouse(z);
+}
+function projHit(p) {
+  let hit = null;
+  for (const z of G.zombies) {
+    if (!foe(z) || !inSpan(p.col, z) || z.y < -0.9) continue;
+    const top = z.type === "boss" ? z.y - 1 : z.y - 0.42,
+      bot = z.type === "boss" ? z.y + 0.8 : z.y + 0.3;
+    if (p.y <= bot && p.y >= top && (!hit || z.y > hit.y)) hit = z;
   }
+  return hit;
 }
 function update(dt) {
   G.t += dt;
@@ -616,6 +790,14 @@ function update(dt) {
     if (e.banner) {
       banner(e.banner);
       S.horn();
+    } else if (e.graves) {
+      G.obst.forEach((row, r) =>
+        row.forEach((o, c) => {
+          if (!o || o.type !== "grave") return;
+          spawnZ(wpick(lv.mix), c, r + 0.2);
+          burst(colX(c), rowY(r + 0.6), 12, "#6B4A2E", 140, 4);
+        }),
+      );
     } else {
       spawnZ(e.type);
       G.spawned++;
@@ -639,6 +821,11 @@ function update(dt) {
     });
   }
   for (const k in G.cds) G.cds[k] = Math.max(0, G.cds[k] - dt);
+  for (let r = 0; r < ROWS; r++)
+    for (let c = 0; c < COLS; c++) {
+      const o = G.obst[r][c];
+      if (o && o.type === "crater" && (o.t -= dt) <= 0) G.obst[r][c] = null;
+    }
   for (const d of G.dogs.slice()) updateDog(d, dt);
   for (const z of G.zombies) if (!z.dead) updateZ(z, dt);
   if (state !== "play") return;
@@ -646,7 +833,7 @@ function update(dt) {
     if (m.state !== "go") continue;
     m.y -= 6 * dt;
     for (const z of G.zombies) {
-      if (z.dead || !inSpan(m.c, z)) continue;
+      if (!foe(z) || !inSpan(m.c, z)) continue;
       if (z.type === "boss") {
         if (m.y <= z.y + 0.8 && m.y >= z.y - 1) {
           dmgZ(z, 1500);
@@ -657,9 +844,7 @@ function update(dt) {
           G.shake = 0.6;
           break;
         }
-      } else if (Math.abs(z.y - m.y) < 0.6) {
-        dmgZ(z, 99999);
-      }
+      } else if (Math.abs(z.y - m.y) < 0.6) dmgZ(z, 99999);
     }
     if (m.y < -1.5) m.state = "done";
   }
@@ -668,7 +853,8 @@ function update(dt) {
     p.rot += dt * 12;
     if (p.kind === "frisbee") {
       for (const z of G.zombies) {
-        if (z.dead || !inSpan(p.col, z) || z.y < -0.9 || p.hit.has(z)) continue;
+        if (!foe(z) || !inSpan(p.col, z) || z.y < -0.9 || p.hit.has(z))
+          continue;
         const top = z.type === "boss" ? z.y - 1 : z.y - 0.42,
           bot = z.type === "boss" ? z.y + 0.8 : z.y + 0.3;
         if (p.y <= bot && p.y >= top) {
@@ -681,13 +867,7 @@ function update(dt) {
       if (p.y < -1) p.dead = true;
       continue;
     }
-    let hit = null;
-    for (const z of G.zombies) {
-      if (z.dead || !inSpan(p.col, z) || z.y < -0.9) continue;
-      const top = z.type === "boss" ? z.y - 1 : z.y - 0.42,
-        bot = z.type === "boss" ? z.y + 0.8 : z.y + 0.3;
-      if (p.y <= bot && p.y >= top && (!hit || z.y > hit.y)) hit = z;
-    }
+    const hit = projHit(p);
     if (hit) {
       dmgZ(hit, p.dmg);
       if (p.kind === "snow") hit.slowT = 4;
@@ -695,12 +875,15 @@ function update(dt) {
         colX(p.col),
         rowY(p.y),
         5,
-        p.kind === "snow" ? "#DDF1FF" : "#D8EE3A",
+        { snow: "#DDF1FF", fur: "#C9CED6" }[p.kind] || "#D8EE3A",
         120,
         3,
       );
       p.dead = true;
       S.hit();
+    } else if (p.lim != null && p.y < p.lim) {
+      p.dead = true;
+      burst(colX(p.col), rowY(p.y), 4, "#C9CED6", 60, 2.5);
     }
     if (p.y < -1) p.dead = true;
   }
@@ -760,7 +943,7 @@ function update(dt) {
       S.noise(1.4, 0.4, 300);
     }
   }
-  if (!G.endless && G.ev >= G.events.length && G.zombies.length === 0) {
+  if (!G.endless && G.ev >= G.events.length && !G.zombies.some(foe)) {
     G.winT += dt;
     if (G.winT > 1.3) win();
   }
@@ -769,7 +952,7 @@ function updFx(dt) {
   for (const p of G.parts) {
     p.life -= dt;
     if (!p.ring) {
-      p.vy += (p.g || 600) * dt;
+      p.vy += (p.g != null ? p.g : 600) * dt;
       p.x += p.vx * dt;
       p.y += p.vy * dt;
     }
@@ -781,4 +964,3 @@ function updFx(dt) {
   }
   G.floats = G.floats.filter((f) => f.life > 0);
 }
-
